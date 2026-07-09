@@ -1,0 +1,37 @@
+from functools import lru_cache
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    MONGODB_URI: str = "mongodb://localhost:27017"
+    MONGODB_DB: str = "governance_watch"
+
+    JWT_SECRET: str = "dev-secret-change-me"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRE_MINUTES: int = 60
+
+    MINISTRY_MATCH_THRESHOLD: int = 85
+
+    GEMINI_API_KEY: str = ""
+
+    CORS_ORIGINS: str = "http://localhost:3000"
+
+    # Admin login credentials, synced into admin_users on every backend
+    # startup — "email:password" pairs, comma-separated. Add more admins by
+    # adding more pairs. Existing users' passwords are overwritten to match
+    # this on each restart, so it's the source of truth, not a one-time seed.
+    ADMIN_USERS: str = "admin:admin"
+
+    ENV: str = "development"
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()

@@ -1,0 +1,118 @@
+from datetime import datetime, timezone
+from pathlib import Path
+
+import pytest
+from httpx import ASGITransport, AsyncClient
+from mongomock_motor import AsyncMongoMockClient
+
+from app.core.db import get_db
+from app.core.security import hash_password
+from app.main import app
+
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
+ISSUE_I_PDF = FIXTURES_DIR / "sample_issue_1_may_1_15_2026.pdf"
+ISSUE_II_PDF = FIXTURES_DIR / "sample_issue_2_may_16_31_2026.pdf"
+
+
+@pytest.fixture
+async def test_db():
+    client = AsyncMongoMockClient()
+    db = client["governance_watch_test"]
+    await db["ministries"].create_index("name", unique=True)
+    await db["admin_users"].create_index("email", unique=True)
+    return db
+
+
+@pytest.fixture
+def override_db(test_db):
+    async def _get_db():
+        return test_db
+
+    app.dependency_overrides[get_db] = _get_db
+    yield test_db
+    app.dependency_overrides.pop(get_db, None)
+
+
+@pytest.fixture
+async def client(override_db):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+
+@pytest.fixture
+async def admin_user(test_db):
+    doc = {
+        "email": "admin@test.dev",
+        "hashed_password": hash_password("adminpass"),
+        "role": "admin",
+    }
+    result = await test_db["admin_users"].insert_one(doc)
+    doc["_id"] = result.inserted_id
+    return doc
+
+
+@pytest.fixture
+async def admin_token(client, admin_user):
+    resp = await client.post(
+        "/api/auth/login", json={"email": "admin@test.dev", "password": "adminpass"}
+    )
+    return resp.json()["access_token"]
+
+
+@pytest.fixture
+async def seeded_ministry(test_db):
+    doc = {
+        "name": "Union Cabinet",
+        "minister_name": "Narendra Modi (Chair)",
+        "department": None,
+        "seal_url": None,
+        "icon": "Building2",
+    }
+    result = await test_db["ministries"].insert_one(doc)
+    doc["_id"] = result.inserted_id
+    return doc
+
+
+@pytest.fixture
+async def seeded_issue(test_db):
+    doc = {
+        "label": "May 2026 | Issue I",
+        "period_start": datetime(2026, 5, 1),
+        "period_end": datetime(2026, 5, 15),
+        "pdf_url": "",
+        "executive_summary": "",
+        "contributors": [],
+        "published_at": datetime.now(timezone.utc),
+    }
+    result = await test_db["issues"].insert_one(doc)
+    doc["_id"] = result.inserted_id
+    return doc
+
+
+@pytest.fixture
+async def seeded_item(test_db, seeded_ministry, seeded_issue):
+    now = datetime.now(timezone.utc)
+    doc = {
+        "title": "ECLGS 5.0 approved for MSMEs and airlines",
+        "description": "Union Cabinet approves guaranteed credit support for MSMEs.",
+        "pillar": "Economic Growth",
+        "subtype": "Policy Update",
+        "status": "Initiated",
+        "impact_level": "High",
+        "ministry_id": seeded_ministry["_id"],
+        "sources": [{"label": "PIB", "url": "https://pib.gov.in"}],
+        "geography": {"scope": "national", "states": []},
+        "tags": ["ECLGS", "MSME"],
+        "issue_id": seeded_issue["_id"],
+        "item_date": seeded_issue["period_start"],
+        "key_features": None,
+        "why_it_matters": None,
+        "embedding": None,
+        "parsing_meta": {"ministry_match_score": 100.0, "geo_match_terms": []},
+        "created_at": now,
+        "updated_at": now,
+    }
+    result = await test_db["policy_items"].insert_one(doc)
+    doc["_id"] = result.inserted_id
+    return doc

@@ -1,0 +1,248 @@
+import React from 'react';
+import { Item } from '../types';
+import { Building2, MapPin, ExternalLink, ArrowLeft } from 'lucide-react';
+
+interface ItemDetailProps {
+  item: Item;
+  onBack: () => void;
+  onFilterMinistry?: (ministryName: string) => void;
+  theme: 'light' | 'dark';
+  issueLabel?: string;
+}
+
+export default function ItemDetail({ item, onBack, onFilterMinistry, theme, issueLabel }: ItemDetailProps) {
+  const isState = item.geography.startsWith('state:');
+  const stateName = isState ? item.geography.replace('state:', '').trim() : '';
+
+  const isDark = theme === 'dark';
+
+  return (
+    <div className={`rounded-[2.5rem] border overflow-hidden shadow-2xl max-w-4xl mx-auto my-6 animate-fade-in transition-all ${
+      isDark ? 'bg-zinc-950 border-zinc-800' : 'bg-white border-zinc-200'
+    }`}>
+      {/* Navy Hero Band */}
+      <div className={`p-8 border-b flex flex-col md:flex-row justify-between items-start md:items-center gap-6 transition-all ${
+        isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-[#185FA5] border-zinc-200 text-white'
+      }`}>
+        <div>
+          <span className={`text-xs font-bold tracking-widest block mb-1 ${
+            isDark ? 'text-amber-400' : 'text-amber-300'
+          }`}>
+            INDIA GOVERNANCE WATCH
+          </span>
+          <h2 className="text-xl md:text-2xl font-extrabold font-display tracking-tight">Policy Brief</h2>
+          <p className={`text-sm mt-1 ${isDark ? 'text-zinc-400' : 'text-zinc-100/80'}`}>Viksit Bharat's policy and administrative developments</p>
+        </div>
+
+        {/* Small Card with NFPRC logo */}
+        <div className={`rounded-2xl p-3 flex items-center gap-3 border shadow-sm select-none ${
+          isDark ? 'bg-zinc-950/85 border-zinc-800 text-zinc-100' : 'bg-white/10 border-white/20 text-white'
+        }`}>
+          <svg width="28" height="28" viewBox="0 0 40 40" aria-hidden="true" className="flex-shrink-0">
+            <circle cx="20" cy="6" r="2.6" fill={isDark ? "#6366F1" : "#FFFFFF"}></circle>
+            <circle cx="34" cy="20" r="2.6" fill={isDark ? "#6366F1" : "#FFFFFF"}></circle>
+            <circle cx="20" cy="34" r="2.6" fill={isDark ? "#6366F1" : "#FFFFFF"}></circle>
+            <circle cx="6" cy="20" r="2.6" fill={isDark ? "#6366F1" : "#FFFFFF"}></circle>
+            <path d="M20 10 C24 10 27 13 27 17 C23 17 20 14 20 10 Z" fill="#F43F5E"></path>
+            <path d="M30 20 C30 24 27 27 23 27 C23 23 26 20 30 20 Z" fill={isDark ? "#6366F1" : "#F38D64"}></path>
+            <path d="M20 30 C16 30 13 27 13 23 C17 23 20 26 20 30 Z" fill="#10B981"></path>
+            <path d="M10 20 C10 16 13 13 17 13 C17 17 14 20 10 20 Z" fill="#F43F5E"></path>
+          </svg>
+          <div className="leading-tight text-left">
+            <span className="block font-bold text-[9px] tracking-wider font-sans">NFPRC</span>
+            <span className={`block font-medium text-[8px] tracking-widest font-sans ${isDark ? 'text-zinc-500' : 'text-white/60'}`}>FOUNDATION</span>
+          </div>
+        </div>
+      </div>
+
+      <div className={`p-8 md:p-10 ${isDark ? 'bg-zinc-900/40' : 'bg-zinc-50/30'}`}>
+        {/* Back Link */}
+        <button
+          onClick={onBack}
+          className={`flex items-center gap-2 text-sm font-bold mb-6 transition-colors group cursor-pointer ${
+            isDark ? 'text-indigo-400 hover:text-indigo-300' : 'text-indigo-700 hover:text-indigo-900'
+          }`}
+        >
+          <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
+          <span>Back to directory</span>
+        </button>
+
+        {/* Full Title */}
+        <h1 className={`text-2xl md:text-3xl font-extrabold font-display tracking-tight mb-5 leading-tight ${
+          isDark ? 'text-zinc-100' : 'text-zinc-900'
+        }`}>
+          {item.title}
+        </h1>
+
+        {/* Description as Lead Paragraph */}
+        <p className={`text-sm md:text-base leading-relaxed mb-8 border-l-4 pl-4 font-medium ${
+          isDark ? 'text-zinc-400 border-indigo-500' : 'text-zinc-600 border-[#185FA5]'
+        }`}>
+          {item.description}
+        </p>
+
+        {/* Bordered Two-Column Table */}
+        <div className={`border rounded-[1.75rem] overflow-hidden mb-8 shadow-sm transition-all ${
+          isDark ? 'border-zinc-800' : 'border-zinc-200'
+        }`}>
+          <table className="w-full text-left border-collapse">
+            <tbody>
+              {/* Row 1: Ministry / State */}
+              <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-zinc-200'}`}>
+                <th className={`w-1/3 p-4 text-xs font-bold uppercase tracking-wider border-r ${
+                  isDark ? 'bg-zinc-950/60 text-zinc-400 border-zinc-800' : 'bg-zinc-50 text-zinc-500 border-zinc-200'
+                }`}>
+                  Jurisdiction
+                </th>
+                <td className="p-4 flex items-center flex-wrap gap-2">
+                  {isState ? (
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold shadow-sm ${
+                      isDark 
+                        ? 'bg-purple-950/40 border-purple-850/50 text-purple-300' 
+                        : 'bg-purple-50 border-purple-150 text-purple-800'
+                    }`}>
+                      <MapPin size={13} className="text-purple-500" />
+                      <span>{stateName} (State)</span>
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => onFilterMinistry?.(item.ministry)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold shadow-sm cursor-pointer transition-colors ${
+                        isDark 
+                          ? 'bg-indigo-950/40 border-indigo-850/50 text-indigo-300 hover:bg-zinc-800' 
+                          : 'bg-indigo-50 border-indigo-150 text-indigo-800 hover:bg-zinc-100'
+                      }`}
+                    >
+                      <Building2 size={13} className="text-indigo-500" />
+                      <span>{item.ministry}</span>
+                    </button>
+                  )}
+                </td>
+              </tr>
+
+              {/* Row 2: Issue */}
+              <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-zinc-200'}`}>
+                <th className={`p-4 text-xs font-bold uppercase tracking-wider border-r ${
+                  isDark ? 'bg-zinc-950/60 text-zinc-400 border-zinc-800' : 'bg-zinc-50 text-zinc-500 border-zinc-200'
+                }`}>
+                  Report Issue
+                </th>
+                <td className="p-4 text-xs font-semibold text-indigo-700 dark:text-indigo-400">
+                  <span className="hover:underline cursor-pointer">{issueLabel || '—'}</span>
+                </td>
+              </tr>
+
+              {/* Row 3: Theme */}
+              <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-zinc-200'}`}>
+                <th className={`p-4 text-xs font-bold uppercase tracking-wider border-r ${
+                  isDark ? 'bg-zinc-950/60 text-zinc-400 border-zinc-800' : 'bg-zinc-50 text-zinc-500 border-zinc-200'
+                }`}>
+                  Theme / Pillar
+                </th>
+                <td className={`p-4 text-xs font-bold ${isDark ? 'text-zinc-200' : 'text-zinc-800'}`}>
+                  {item.theme}
+                </td>
+              </tr>
+
+              {/* Row 4: Status + Impact */}
+              <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-zinc-200'}`}>
+                <th className={`p-4 text-xs font-bold uppercase tracking-wider border-r ${
+                  isDark ? 'bg-zinc-950/60 text-zinc-400 border-zinc-800' : 'bg-zinc-50 text-zinc-500 border-zinc-200'
+                }`}>
+                  Status &amp; Impact
+                </th>
+                <td className="p-4 flex items-center gap-3 flex-wrap">
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                    item.status === 'Completed' 
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
+                      : item.status === 'Initiated' 
+                        ? 'bg-indigo-50 text-indigo-800 border border-indigo-200' 
+                        : 'bg-purple-50 text-purple-800 border border-purple-200'
+                  }`}>
+                    {item.status}
+                  </span>
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                    item.impact === 'High' 
+                      ? 'bg-rose-50 text-rose-800 border border-rose-200' 
+                      : item.impact === 'Medium' 
+                        ? 'bg-amber-50 text-amber-800 border border-amber-200' 
+                        : 'bg-zinc-100 text-zinc-700 border border-zinc-200'
+                  }`}>
+                    {item.impact} Impact
+                  </span>
+                </td>
+              </tr>
+
+              {/* Row 5: Tags */}
+              <tr>
+                <th className={`p-4 text-xs font-bold uppercase tracking-wider border-r ${
+                  isDark ? 'bg-zinc-950/60 text-zinc-400 border-zinc-800' : 'bg-zinc-50 text-zinc-500 border-zinc-200'
+                }`}>
+                  Tags
+                </th>
+                <td className="p-4">
+                  <div className="flex flex-wrap gap-1.5">
+                    {item.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className={`px-2.5 py-1 border rounded-lg text-xs font-bold shadow-sm ${
+                          isDark 
+                            ? 'bg-zinc-800/60 border-zinc-700 text-zinc-300' 
+                            : 'bg-zinc-100 border-zinc-200 text-zinc-700'
+                        }`}
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Sources Section */}
+        <div className={`border-t pt-8 ${isDark ? 'border-zinc-800' : 'border-zinc-200'}`}>
+          <h3 className={`text-base font-bold tracking-tight mb-4 flex items-center gap-2 font-display ${
+            isDark ? 'text-zinc-200' : 'text-zinc-800'
+          }`}>
+            <span>Sources Cited</span>
+            <span className="text-xs font-semibold text-zinc-400">({item.sources.length} citations)</span>
+          </h3>
+          <ul className="space-y-3">
+            {item.sources.map((source, index) => (
+              <li
+                key={index}
+                className={`flex items-start gap-3 p-4 border rounded-2xl text-xs transition-all ${
+                  isDark 
+                    ? 'bg-zinc-950/50 border-zinc-800' 
+                    : 'bg-zinc-50 border-zinc-200 shadow-sm'
+                }`}
+              >
+                <span className={`w-6 h-6 rounded-full border font-bold text-xs flex items-center justify-center shrink-0 mt-0.5 ${
+                  isDark 
+                    ? 'bg-indigo-950/40 border-indigo-800 text-indigo-300' 
+                    : 'bg-indigo-50 border-indigo-200 text-indigo-800'
+                }`}>
+                  {index + 1}
+                </span>
+                <div className="min-w-0">
+                  <span className={`font-bold block ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>{source.label}</span>
+                  <a
+                    href={source.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline text-xs mt-1 font-bold break-all"
+                  >
+                    <span>{source.url}</span>
+                    <ExternalLink size={12} />
+                  </a>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}

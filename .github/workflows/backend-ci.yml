@@ -1,0 +1,29 @@
+name: Backend CI
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create dummy .env (tests use mongomock, no real secrets needed)
+        run: cp backend/.env.example backend/.env
+
+      - name: Build backend image
+        run: docker compose build backend
+
+      - name: Run pytest with coverage
+        run: |
+          docker compose run --rm backend python -m pytest -q \
+            --cov=app.routers --cov=app.services --cov-report=term-missing \
+            --cov-fail-under=80

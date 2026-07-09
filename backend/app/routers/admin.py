@@ -1,0 +1,149 @@
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, HTTPException
+from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.errors import DuplicateKeyError
+
+from app.core.config import get_settings
+from app.core.db import COLLECTIONS, get_db
+from app.core.deps import get_current_admin
+from app.core.utils import parse_object_id
+from app.schemas.item import ItemOut, serialize_item
+from app.schemas.ministry import (
+    MinistryCreate,
+    MinistryOut,
+    MinistryUpdate,
+    serialize_ministry,
+)
+from app.schemas.upload import ManualItemCreate
+from app.services.geo_tagger import parse_geography_string
+from app.services.lookups import get_latest_issue_id
+from app.services.ministry_resolver import resolve_ministry
+
+router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+
+@router.get("/ministries", response_model=list[MinistryOut])
+async def admin_list_ministries(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    _admin: dict = Depends(get_current_admin),
+):
+    docs = [doc async for doc in db[COLLECTIONS["ministries"]].find().sort("name", 1)]
+    return [serialize_ministry(doc) for doc in docs]
+
+
+@router.post("/ministries", response_model=MinistryOut, status_code=201)
+async def create_ministry(
+    payload: MinistryCreate,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    _admin: dict = Depends(get_current_admin),
+):
+    try:
+        result = await db[COLLECTIONS["ministries"]].insert_one(payload.model_dump())
+    except DuplicateKeyError:
+        raise HTTPException(status_code=409, detail="Ministry with this name already exists")
+
+    doc = await db[COLLECTIONS["ministries"]].find_one({"_id": result.inserted_id})
+    return serialize_ministry(doc)
+
+
+@router.patch("/ministries/{ministry_id}", response_model=MinistryOut)
+async def update_ministry(
+    ministry_id: str,
+    payload: MinistryUpdate,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    _admin: dict = Depends(get_current_admin),
+):
+    oid = parse_object_id(ministry_id, "Ministry not found")
+    updates = {k: v for k, v in payload.model_dump().items() if v is not None}
+    if updates:
+        try:
+            result = await db[COLLECTIONS["ministries"]].update_one({"_id": oid}, {"$set": updates})
+        except DuplicateKeyError:
+            raise HTTPException(status_code=409, detail="Ministry with this name already exists")
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Ministry not found")
+
+    doc = await db[COLLECTIONS["ministries"]].find_one({"_id": oid})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Ministry not found")
+    return serialize_ministry(doc)
+
+
+@router.delete("/ministries/{ministry_id}", status_code=204)
+async def delete_ministry(
+    ministry_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    _admin: dict = Depends(get_current_admin),
+):
+    oid = parse_object_id(ministry_id, "Ministry not found")
+    result = await db[COLLECTIONS["ministries"]].delete_one({"_id": oid})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Ministry not found")
+
+
+@router.post("/items", response_model=ItemOut, status_code=201)
+async def create_manual_item(
+    payload: ManualItemCreate,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    _admin: dict = Depends(get_current_admin),
+):
+    """Supplementary, non-spec endpoint backing the frontend's original manual
+    single-item Upload form, kept alongside the spec's real file-based ingestion
+    (POST /api/admin/issues/upload). See reconciliation note."""
+    settings = get_settings()
+
+    if payload.issue_id:
+        issue_oid = parse_object_id(payload.issue_id, "Issue not found")
+        issue_doc = await db[COLLECTIONS["issues"]].find_one({"_id": issue_oid})
+        if not issue_doc:
+            raise HTTPException(status_code=404, detail="Issue not found")
+    else:
+        latest = await get_latest_issue_id(db)
+        if not latest:
+            raise HTTPException(status_code=400, detail="No issues exist yet to attach this item to")
+        issue_oid = parse_object_id(latest)
+
+    ministry_id, _score = await resolve_ministry(db, payload.ministry, settings.MINISTRY_MATCH_THRESHOLD)
+
+    scope, states = parse_geography_string(payload.geography)
+
+    now = datetime.now(timezone.utc)
+    doc = {
+        "title": payload.title,
+        "description": payload.description,
+        "pillar": payload.theme,
+        "subtype": "Announcement",
+        "status": payload.status,
+        "impact_level": payload.impact,
+        "ministry_id": ministry_id,
+        "sources": [s.model_dump() for s in payload.sources],
+        "geography": {"scope": scope, "states": states},
+        "tags": payload.tags,
+        "issue_id": issue_oid,
+        "item_date": datetime(2026, _month_for(payload.date), payload.dateValue),
+        "key_features": None,
+        "why_it_matters": None,
+        "embedding": None,
+        "parsing_meta": {"ministry_match_score": _score, "geo_match_terms": []},
+        "created_at": now,
+        "updated_at": now,
+    }
+    result = await db[COLLECTIONS["policy_items"]].insert_one(doc)
+    doc["_id"] = result.inserted_id
+
+    ministry_doc = await db[COLLECTIONS["ministries"]].find_one({"_id": ministry_id})
+    return serialize_item(doc, ministry_doc["name"] if ministry_doc else payload.ministry)
+
+
+_MONTHS = {
+    "Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4, "May": 5, "Jun": 6,
+    "Jul": 7, "Aug": 8, "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12,
+}
+
+
+def _month_for(date_str: str) -> int:
+    parts = date_str.strip().split()
+    if len(parts) >= 2 and parts[1] in _MONTHS:
+        return _MONTHS[parts[1]]
+    return datetime.now(timezone.utc).month

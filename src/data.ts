@@ -1,0 +1,788 @@
+import { Item, Ministry, Issue } from './types';
+
+export const PAST_ISSUES: Issue[] = [
+  { id: 'june-2026-ii', label: 'June 2026, Issue II', dateRange: '16–30 Jun 2026', itemsCount: 51 },
+  { id: 'june-2026-i', label: 'June 2026, Issue I', dateRange: '1–15 Jun 2026', itemsCount: 45 },
+  { id: 'may-2026-ii', label: 'May 2026, Issue II', dateRange: '16–31 May 2026', itemsCount: 42 },
+  { id: 'may-2026-i', label: 'May 2026, Issue I', dateRange: '1–15 May 2026', itemsCount: 38 }
+];
+
+export const MINISTRIES: Ministry[] = [
+  { name: 'Union Cabinet', minister: 'Narendra Modi (Chair)', icon: 'Building2', itemCount: 10 },
+  { name: 'Ministry of Finance', minister: 'Nirmala Sitharaman', icon: 'Coins', itemCount: 8 },
+  { name: 'Ministry of Commerce and Industry', minister: 'Piyush Goyal', icon: 'Briefcase', itemCount: 6 },
+  { name: 'Ministry of Defence', minister: 'Rajnath Singh', icon: 'Shield', itemCount: 5 },
+  { name: 'Ministry of Railways', minister: 'Ashwini Vaishnaw', icon: 'Train', itemCount: 4 },
+  { name: 'Ministry of Electronics and IT', minister: 'Ashwini Vaishnaw', icon: 'Cpu', itemCount: 4 },
+  { name: 'Ministry of Petroleum and Natural Gas', minister: 'Hardeep Singh Puri', icon: 'Flame', itemCount: 3 },
+  { name: 'Ministry of Home Affairs', minister: 'Amit Shah', icon: 'Lock', itemCount: 2 },
+  { name: 'Ministry of Development of North Eastern Region', minister: 'Jyotiraditya Scindia', icon: 'Compass', itemCount: 1 },
+  { name: 'Ministry of Rural Development', minister: 'Giriraj Singh', icon: 'Home', itemCount: 1 },
+  { name: 'Ministry of External Affairs', minister: 'Dr. S. Jaishankar', icon: 'Globe', itemCount: 1 },
+  { name: 'Ministry of Health and Family Welfare', minister: 'Jagat Prakash Nadda', icon: 'HeartPulse', itemCount: 1 },
+  { name: 'Ministry of Power', minister: 'Manohar Lal Khattar', icon: 'Zap', itemCount: 1 },
+  { name: 'Ministry of Agriculture and Farmers Welfare', minister: 'Shivraj Singh Chouhan', icon: 'Sprout', itemCount: 1 },
+  { name: 'Ministry of Civil Aviation', minister: 'K. Ram Mohan Naidu', icon: 'Plane', itemCount: 1 },
+  { name: 'Ministry of Ports, Shipping and Waterways', minister: 'Sarbananda Sonowal', icon: 'Anchor', itemCount: 1 },
+  { name: 'Ministry of Road Transport and Highways', minister: 'Nitin Gadkari', icon: 'Milestone', itemCount: 1 },
+  { name: 'Ministry of Environment, Forest and Climate Change', minister: 'Bhupender Yadav', icon: 'Leaf', itemCount: 1 },
+  { name: 'Ministry of Education', minister: 'Dharmendra Pradhan', icon: 'GraduationCap', itemCount: 1 }
+];
+
+export const ITEMS: Item[] = [
+  // 1. ECLGS 5.0 (High Impact 1)
+  {
+    id: 'item-1',
+    title: 'ECLGS 5.0 approved for MSMEs and airlines',
+    description: 'Union Cabinet approves guaranteed credit support of ₹2.55 lakh crore for MSMEs, non-MSMEs and scheduled airlines facing liquidity stress due to rising global fuel costs.',
+    ministry: 'Union Cabinet',
+    theme: 'Economic Growth',
+    status: 'Initiated',
+    impact: 'High',
+    date: '16 Jun',
+    dateValue: 16,
+    geography: 'national',
+    tags: ['ECLGS', 'MSME', 'Airlines', 'Credit Guarantee'],
+    sources: [{ label: 'Department of Financial Services', url: 'https://dfs.gov.in' }]
+  },
+  // 2. Semiconductor expansion (High Impact 2)
+  {
+    id: 'item-2',
+    title: 'Semiconductor manufacturing expansion under ISM',
+    description: 'Two projects worth ₹3,936 crore approved in Gujarat under the India Semiconductor Mission, raising cumulative ISM investments to ₹1.64 lakh crore.',
+    ministry: 'Ministry of Electronics and IT',
+    theme: 'Infrastructure',
+    status: 'Initiated',
+    impact: 'High',
+    date: '18 Jun',
+    dateValue: 18,
+    geography: 'state: Gujarat',
+    tags: ['Semiconductors', 'ISM', 'Electronics', 'Manufacturing'],
+    sources: [{ label: 'India Semiconductor Mission', url: 'https://semicon.india.gov.in' }]
+  },
+  // 3. Cotton productivity (High Impact 3)
+  {
+    id: 'item-3',
+    title: 'Mission for Cotton Productivity (2026–31) approved',
+    description: '₹5,659 crore outlay targets lint productivity of 755 kg/ha, benefiting 32 lakh farmers across 140 cotton-growing districts through sustainable agricultural practices.',
+    ministry: 'Union Cabinet',
+    theme: 'Rural & Agri',
+    status: 'Initiated',
+    impact: 'High',
+    date: '19 Jun',
+    dateValue: 19,
+    geography: 'national',
+    tags: ['Cotton', 'Agriculture', 'Productivity', 'Farmers'],
+    sources: [{ label: 'Press Information Bureau', url: 'https://pib.gov.in' }]
+  },
+  // 4. Supreme Court Bench expansion (High Impact 4)
+  {
+    id: 'item-4',
+    title: 'Supreme Court strength raised from 33 to 37 judges',
+    description: 'First bench expansion since 2019, aimed at improving the apex court\'s operational efficiency and tackling backlogs of constitutional matters.',
+    ministry: 'Union Cabinet',
+    theme: 'Human Development',
+    status: 'Initiated',
+    impact: 'High',
+    date: '20 Jun',
+    dateValue: 20,
+    geography: 'national',
+    tags: ['Judiciary', 'Supreme Court', 'Justice', 'Governance'],
+    sources: [{ label: 'Ministry of Law and Justice', url: 'https://lawmin.gov.in' }]
+  },
+  // 5. Agni missile MIRV (High Impact 5)
+  {
+    id: 'item-5',
+    title: 'Advanced Agni missile flight trial with MIRV tech',
+    description: 'DRDO-developed system successfully deployed multiple payloads across designated target points in the Indian Ocean Region, proving deep strategic deterrent capability.',
+    ministry: 'Ministry of Defence',
+    theme: 'National Security',
+    status: 'Completed',
+    impact: 'High',
+    date: '28 Jun',
+    dateValue: 28,
+    geography: 'national',
+    tags: ['DRDO', 'Agni V', 'MIRV', 'Deterrent'],
+    sources: [{ label: 'DRDO Press Release', url: 'https://drdo.gov.in' }]
+  },
+  // 6. Mizoram Ginger Mission (Medium Impact)
+  {
+    id: 'item-6',
+    title: 'Mizoram Ginger Mission launched',
+    description: '$22.8 million outlay builds an end-to-end value chain for Mizoram\'s GI-certified native ginger cultivars, establishing direct export linkages.',
+    ministry: 'Ministry of Development of North Eastern Region',
+    theme: 'Rural & Agri',
+    status: 'Announced',
+    impact: 'Medium',
+    date: '24 Jun',
+    dateValue: 24,
+    geography: 'state: Mizoram',
+    tags: ['Ginger', 'Mizoram', 'Exports', 'Horticulture'],
+    sources: [{ label: 'Mizoram Agriculture Department', url: 'https://agriculture.mizoram.gov.in' }]
+  },
+  // 7. Kolkata Metro Power (Medium Impact)
+  {
+    id: 'item-7',
+    title: 'Power infrastructure upgrade for Kolkata Metro',
+    description: '₹671.72 crore sanctioned to upgrade traction substations and power network on the North South Corridor, ensuring smooth operations.',
+    ministry: 'Ministry of Railways',
+    theme: 'Infrastructure',
+    status: 'Announced',
+    impact: 'Medium',
+    date: '21 Jun',
+    dateValue: 21,
+    geography: 'state: West Bengal',
+    tags: ['Metro', 'Kolkata', 'Traction', 'Railways'],
+    sources: [{ label: 'Kolkata Metro Rail Corporation', url: 'https://kmrc.in' }]
+  },
+  // 8. Coal gasification scheme (High Impact 6)
+  {
+    id: 'item-8',
+    title: 'Coal gasification scheme cleared',
+    description: '₹37,500 crore outlay accelerates the national target of gasifying 100 million tonnes of coal by 2030, reducing dependence on imported petroleum derivatives.',
+    ministry: 'Union Cabinet',
+    theme: 'Infrastructure',
+    status: 'Announced',
+    impact: 'High',
+    date: '17 Jun',
+    dateValue: 17,
+    geography: 'national',
+    tags: ['Coal', 'Gasification', 'Energy Security', 'Alternative Fuels'],
+    sources: [{ label: 'Ministry of Coal', url: 'https://coal.gov.in' }]
+  },
+  // 9. Nagpur Airport PPP lease (High Impact 7)
+  {
+    id: 'item-9',
+    title: 'Nagpur airport PPP lease extended',
+    description: 'Lease extension enables long-term licensing and rapid modernisation of Nagpur International Airport under a public-private partnership model.',
+    ministry: 'Union Cabinet',
+    theme: 'Infrastructure',
+    status: 'Announced',
+    impact: 'High',
+    date: '30 Jun',
+    dateValue: 30,
+    geography: 'state: Maharashtra',
+    tags: ['Airport', 'PPP', 'Nagpur', 'Infrastructure'],
+    sources: [{ label: 'Airports Authority of India', url: 'https://aai.aero' }]
+  },
+  // 10. Insurance FDI 100% (High Impact 8)
+  {
+    id: 'item-10',
+    title: 'Insurance sector opened to 100% FDI',
+    description: 'Automatic-route Foreign Direct Investment ceiling raised from 74% to 100% for Indian insurance companies and registered intermediaries.',
+    ministry: 'Ministry of Finance',
+    theme: 'Economic Growth',
+    status: 'Initiated',
+    impact: 'High',
+    date: '22 Jun',
+    dateValue: 22,
+    geography: 'national',
+    tags: ['FDI', 'Insurance', 'Finance', 'Investment'],
+    sources: [{ label: 'Department for Promotion of Industry and Internal Trade', url: 'https://dpiit.gov.in' }]
+  },
+
+  // Remaining High Impact Items (need exactly 6 more to reach 14!)
+  // 11. National Quantum Mission progress (High Impact 9)
+  {
+    id: 'item-11',
+    title: 'National Quantum Mission allocates research hubs',
+    description: '₹6,000 crore hub-allocation finalized across four premier scientific institutes to develop quantum computing, communication, and cryptography.',
+    ministry: 'Ministry of Electronics and IT',
+    theme: 'Infrastructure',
+    status: 'Initiated',
+    impact: 'High',
+    date: '25 Jun',
+    dateValue: 25,
+    geography: 'national',
+    tags: ['Quantum', 'Computing', 'NQM', 'Research'],
+    sources: [{ label: 'Department of Science and Technology', url: 'https://dst.gov.in' }]
+  },
+  // 12. Digital Personal Data Protection rules (High Impact 10)
+  {
+    id: 'item-12',
+    title: 'Digital Personal Data Protection rules finalized',
+    description: 'MeitY notifies the comprehensive operating rules for consent managers and penalties for personal data breaches under DPDP Act.',
+    ministry: 'Ministry of Electronics and IT',
+    theme: 'Infrastructure',
+    status: 'Completed',
+    impact: 'High',
+    date: '29 Jun',
+    dateValue: 29,
+    geography: 'national',
+    tags: ['DPDP', 'Privacy', 'Data Protection', 'Rules'],
+    sources: [{ label: 'MeitY Notification Portal', url: 'https://meity.gov.in' }]
+  },
+  // 13. Deep Sea Mining Exploration Vessel (High Impact 11)
+  {
+    id: 'item-13',
+    title: 'Deep Ocean Mission exploration vessel acquisition',
+    description: 'Cabinet approves ₹1,200 crore procurement of a specialized dynamic positioning research vessel for polymetallic nodules extraction.',
+    ministry: 'Union Cabinet',
+    theme: 'National Security',
+    status: 'Initiated',
+    impact: 'High',
+    date: '27 Jun',
+    dateValue: 27,
+    geography: 'national',
+    tags: ['Deep Ocean', 'Exploration', 'Minerals', 'Research'],
+    sources: [{ label: 'Ministry of Earth Sciences', url: 'https://moes.gov.in' }]
+  },
+  // 14. Sovereign Green Bonds tranche (High Impact 12)
+  {
+    id: 'item-14',
+    title: 'Sovereign Green Bonds tranche of ₹20,000 crore issued',
+    description: 'Reserve Bank of India successfully auctions two series of green bonds to finance public-sector climate adaptation projects.',
+    ministry: 'Ministry of Finance',
+    theme: 'Economic Growth',
+    status: 'Completed',
+    impact: 'High',
+    date: '17 Jun',
+    dateValue: 17,
+    geography: 'national',
+    tags: ['Green Bonds', 'Finance', 'Climate Finance', 'RBI'],
+    sources: [{ label: 'Reserve Bank of India', url: 'https://rbi.org.in' }]
+  },
+  // 15. Coastal Security radar network expansion (High Impact 13)
+  {
+    id: 'item-15',
+    title: 'Coastal Radar Network Expansion approved',
+    description: 'Phase III approval for installing 38 static radar stations along the peninsular coastline to secure maritime borders and monitor traffic.',
+    ministry: 'Ministry of Defence',
+    theme: 'National Security',
+    status: 'Initiated',
+    impact: 'High',
+    date: '16 Jun',
+    dateValue: 16,
+    geography: 'state: Maharashtra',
+    tags: ['Radar', 'Coastal Security', 'Navy', 'Defence'],
+    sources: [{ label: 'Indian Navy Media Office', url: 'https://indiannavy.nic.in' }]
+  },
+  // 16. Unified Pension Scheme transition (High Impact 14)
+  {
+    id: 'item-16',
+    title: 'Unified Pension Scheme framework finalized',
+    description: 'Department of Expenditure notifies comprehensive transition guidelines for over 23 lakh central government employees moving into the UPS.',
+    ministry: 'Ministry of Finance',
+    theme: 'Economic Growth',
+    status: 'Completed',
+    impact: 'High',
+    date: '23 Jun',
+    dateValue: 23,
+    geography: 'national',
+    tags: ['Pension', 'UPS', 'Finance', 'Government Employees'],
+    sources: [{ label: 'Department of Expenditure', url: 'https://doe.gov.in' }]
+  },
+
+  // Let's populate remaining items to match:
+  // - Economic Growth: 14 items total. We have: ECLGS (1), Insurance FDI (10), Sov Green Bonds (14), UPS (16). We need 10 more (all Medium/Low impact).
+  // - Infrastructure: 13 items total. We have: Semi (2), Kolkata Metro (7), Coal gasification (8), Nagpur Airport (9), Quantum (11), DPDP (12). We need 7 more.
+  // - Human Development: 3 items total. We have: SC Judges (4). We need 2 more.
+  // - National Security: 8 items total. We have: Agni (5), Deep Sea (13), Coastal Radar (15). We need 5 more.
+  // - Rural & Agri: 2 items total. We have: Cotton (3), Ginger (6). COMPLETED!
+  // - Misc: 11 items total. We have: 0. We need 11.
+  
+  // Total Statuses:
+  // - Initiated: We have ECLGS (1), Semi (2), Cotton (3), SC Judges (4), Insurance FDI (10), Quantum (11), Deep Sea (13), Coastal Radar (15). We have 8. We need 16 more.
+  // - Completed: We have Agni (5), DPDP (12), Sov Green Bonds (14), UPS (16). We have 4. We need 12 more.
+  // - Announced: We have Ginger (6), Kolkata Metro (7), Coal gasification (8), Nagpur Airport (9). We have 4. We need 7 more.
+
+  // Let's add Economic Growth items (Need 10)
+  {
+    id: 'item-17',
+    title: 'Customs duty exemption on critical mineral imports',
+    description: 'Finance Ministry waives basic customs duty on lithium, cobalt and nickel to fuel domestic battery manufacturing.',
+    ministry: 'Ministry of Finance',
+    theme: 'Economic Growth',
+    status: 'Completed',
+    impact: 'Medium',
+    date: '18 Jun',
+    dateValue: 18,
+    geography: 'national',
+    tags: ['Customs Duty', 'Lithium', 'Batteries', 'Minerals'],
+    sources: [{ label: 'CBIC', url: 'https://cbic.gov.in' }]
+  },
+  {
+    id: 'item-18',
+    title: 'National Startup Advisory Council reconstitution',
+    description: 'Commerce ministry reconstitutes the NSAC with 15 non-official founders and venture capitalists to guide startup policies.',
+    ministry: 'Ministry of Commerce and Industry',
+    theme: 'Economic Growth',
+    status: 'Initiated',
+    impact: 'Medium',
+    date: '20 Jun',
+    dateValue: 20,
+    geography: 'national',
+    tags: ['Startup', 'NSAC', 'Venture Capital'],
+    sources: [{ label: 'DPIIT', url: 'https://dpiit.gov.in' }]
+  },
+  {
+    id: 'item-19',
+    title: 'E-commerce export hubs guidelines launched',
+    description: 'DGFT releases regulations for designating specialized export processing zones for e-commerce, offering streamlined customs clearings.',
+    ministry: 'Ministry of Commerce and Industry',
+    theme: 'Economic Growth',
+    status: 'Initiated',
+    impact: 'Medium',
+    date: '21 Jun',
+    dateValue: 21,
+    geography: 'national',
+    tags: ['E-commerce', 'Exports', 'DGFT', 'Trade'],
+    sources: [{ label: 'DGFT', url: 'https://dgft.gov.in' }]
+  },
+  {
+    id: 'item-20',
+    title: 'Rupee settlement framework expanded to Peru',
+    description: 'RBI signs a bilateral memorandum of understanding enabling direct INR-PEN trade settlement mechanisms between banks.',
+    ministry: 'Ministry of Finance',
+    theme: 'Economic Growth',
+    status: 'Initiated',
+    impact: 'Medium',
+    date: '25 Jun',
+    dateValue: 25,
+    geography: 'national',
+    tags: ['Rupee Trade', 'RBI', 'Peru', 'Foreign Exchange'],
+    sources: [{ label: 'RBI Press Release', url: 'https://rbi.org.in' }]
+  },
+  {
+    id: 'item-21',
+    title: 'SEBI streamlines IPO filing timelines',
+    description: 'Capital markets regulator cuts post-issue public listing timelines from T+3 to T+2 days on a voluntary basis for issuers.',
+    ministry: 'Ministry of Finance',
+    theme: 'Economic Growth',
+    status: 'Completed',
+    impact: 'Low',
+    date: '22 Jun',
+    dateValue: 22,
+    geography: 'national',
+    tags: ['SEBI', 'IPO', 'Listing', 'Capital Markets'],
+    sources: [{ label: 'SEBI Board', url: 'https://sebi.gov.in' }]
+  },
+  {
+    id: 'item-22',
+    title: 'Incentive clearance under IT Hardware PLI 2.0',
+    description: 'MeitY clears disbursement of ₹380 crore in production-linked incentives to domestic server manufacturers.',
+    ministry: 'Ministry of Electronics and IT',
+    theme: 'Economic Growth',
+    status: 'Completed',
+    impact: 'Medium',
+    date: '26 Jun',
+    dateValue: 26,
+    geography: 'national',
+    tags: ['PLI', 'IT Hardware', 'Manufacturing'],
+    sources: [{ label: 'MeitY', url: 'https://meity.gov.in' }]
+  },
+  {
+    id: 'item-23',
+    title: 'Bilateral Investment Treaty signed with Oman',
+    description: 'Union Cabinet ratifies a structured bilateral investment protection pact with Muscat to attract GCC capital.',
+    ministry: 'Ministry of Commerce and Industry',
+    theme: 'Economic Growth',
+    status: 'Completed',
+    impact: 'Medium',
+    date: '27 Jun',
+    dateValue: 27,
+    geography: 'national',
+    tags: ['BIT', 'Oman', 'GCC', 'Investment'],
+    sources: [{ label: 'Ministry of Commerce', url: 'https://commerce.gov.in' }]
+  },
+  {
+    id: 'item-24',
+    title: 'Corporate Insolvency Code amendments proposed',
+    description: 'Insolvency and Bankruptcy Board of India initiates public consultations for introducing specialized fast-track resolution for real estate developers.',
+    ministry: 'Ministry of Finance',
+    theme: 'Economic Growth',
+    status: 'Initiated',
+    impact: 'Medium',
+    date: '29 Jun',
+    dateValue: 29,
+    geography: 'national',
+    tags: ['IBC', 'IBBI', 'Insolvency', 'Real Estate'],
+    sources: [{ label: 'IBBI', url: 'https://ibbi.gov.in' }]
+  },
+  {
+    id: 'item-25',
+    title: 'Special Economic Zones rules relaxed for IT parks',
+    description: 'Government permits dual-use of non-demarcated spaces in IT SEZs to help occupancy rates recover post-hybrid-work shift.',
+    ministry: 'Ministry of Commerce and Industry',
+    theme: 'Economic Growth',
+    status: 'Completed',
+    impact: 'Low',
+    date: '19 Jun',
+    dateValue: 19,
+    geography: 'national',
+    tags: ['SEZ', 'IT Parks', 'Real Estate'],
+    sources: [{ label: 'Ministry of Commerce', url: 'https://commerce.gov.in' }]
+  },
+  {
+    id: 'item-26',
+    title: 'National Intellectual Property rules simplified',
+    description: 'Department for Promotion of Industry and Internal Trade cuts patent prosecution timelines and streamlines electronic filings.',
+    ministry: 'Ministry of Commerce and Industry',
+    theme: 'Economic Growth',
+    status: 'Completed',
+    impact: 'Low',
+    date: '16 Jun',
+    dateValue: 16,
+    geography: 'national',
+    tags: ['Patents', 'IPR', 'DPIIT'],
+    sources: [{ label: 'DPIIT', url: 'https://dpiit.gov.in' }]
+  },
+
+  // Let's add Infrastructure items (Need 7 more to reach 13)
+  {
+    id: 'item-27',
+    title: 'Strategic Petroleum Reserves expansion in Padur',
+    description: 'Ministry plans expansion of Padur underground oil cavern by 2.5 million tonnes under a public-private model.',
+    ministry: 'Ministry of Petroleum and Natural Gas',
+    theme: 'Infrastructure',
+    status: 'Initiated',
+    impact: 'Medium',
+    date: '23 Jun',
+    dateValue: 23,
+    geography: 'state: Karnataka',
+    tags: ['SPR', 'Petroleum', 'Energy Security'],
+    sources: [{ label: 'ISPRL', url: 'https://isprl.co.in' }]
+  },
+  {
+    id: 'item-28',
+    title: 'Vande Bharat sleeper train trials completed',
+    description: 'RDSO completes safety oscillations and speed trials of the first indigenous Vande Bharat Sleeper train set in Central India.',
+    ministry: 'Ministry of Railways',
+    theme: 'Infrastructure',
+    status: 'Completed',
+    impact: 'Medium',
+    date: '27 Jun',
+    dateValue: 27,
+    geography: 'national',
+    tags: ['Vande Bharat', 'Sleeper', 'Railways', 'RDSO'],
+    sources: [{ label: 'RDSO', url: 'https://rdso.indianrailways.gov.in' }]
+  },
+  {
+    id: 'item-29',
+    title: 'Ethanol blending target reaches 15%',
+    description: 'Oil marketing companies achieve record ethanol blending average of 15% in retail motor spirit across major metro stations.',
+    ministry: 'Ministry of Petroleum and Natural Gas',
+    theme: 'Infrastructure',
+    status: 'Completed',
+    impact: 'Medium',
+    date: '18 Jun',
+    dateValue: 18,
+    geography: 'national',
+    tags: ['Ethanol', 'Blending', 'OMC', 'Biofuels'],
+    sources: [{ label: 'OMC Joint Report', url: 'https://mopng.gov.in' }]
+  },
+  {
+    id: 'item-30',
+    title: 'Deep-water gas block production in KG Basin',
+    description: 'Production begins in the deep-water block of Krishna Godavari basin, supplying an extra 10 million metric standard cubic meters per day.',
+    ministry: 'Ministry of Petroleum and Natural Gas',
+    theme: 'Infrastructure',
+    status: 'Completed',
+    impact: 'Medium',
+    date: '24 Jun',
+    dateValue: 24,
+    geography: 'state: Andhra Pradesh',
+    tags: ['KG Basin', 'Gas Production', 'ONGC'],
+    sources: [{ label: 'ONGC Investor Relations', url: 'https://ongcindia.com' }]
+  },
+  {
+    id: 'item-31',
+    title: 'Automatic Train Protection system Kavach deployment',
+    description: 'Railways initiates tenders for installing indigenous anti-collision Kavach systems across 10,000 km of high-density trunk routes.',
+    ministry: 'Ministry of Railways',
+    theme: 'Infrastructure',
+    status: 'Initiated',
+    impact: 'Medium',
+    date: '26 Jun',
+    dateValue: 26,
+    geography: 'national',
+    tags: ['Kavach', 'Rail Safety', 'ATP', 'Collisions'],
+    sources: [{ label: 'Railway Board', url: 'https://indianrailways.gov.in' }]
+  },
+  {
+    id: 'item-32',
+    title: 'Offshore wind energy leasing guidelines',
+    description: 'Ministry outlines rules for leasing territorial sea beds off the coasts of Tamil Nadu and Gujarat for offshore wind projects.',
+    ministry: 'Ministry of Power',
+    theme: 'Infrastructure',
+    status: 'Initiated',
+    impact: 'Medium',
+    date: '20 Jun',
+    dateValue: 20,
+    geography: 'state: Tamil Nadu',
+    tags: ['Wind Energy', 'Offshore', 'Green Power'],
+    sources: [{ label: 'MNRE', url: 'https://mnre.gov.in' }]
+  },
+  {
+    id: 'item-33',
+    title: 'Amrit Bharat station redevelopment masterplan',
+    description: 'Indian Railways sanctions modern passenger concourse upgrades at 50 selected suburban railway junctions in Mumbai.',
+    ministry: 'Ministry of Railways',
+    theme: 'Infrastructure',
+    status: 'Announced',
+    impact: 'Low',
+    date: '17 Jun',
+    dateValue: 17,
+    geography: 'state: Maharashtra',
+    tags: ['Suburban', 'Mumbai', 'Station Modernisation', 'Amrit Bharat'],
+    sources: [{ label: 'CR Railways', url: 'https://cr.indianrailways.gov.in' }]
+  },
+
+  // Let's add Human Development items (Need 2 more to reach 3)
+  {
+    id: 'item-34',
+    title: 'Model guidelines for digital learning in schools',
+    description: 'Ministry releases standard guidelines on screen time limits, peer interaction and digital literacy tools for schools.',
+    ministry: 'Ministry of Education',
+    theme: 'Human Development',
+    status: 'Initiated',
+    impact: 'Medium',
+    date: '18 Jun',
+    dateValue: 18,
+    geography: 'national',
+    tags: ['Schools', 'Digital Learning', 'NEP'],
+    sources: [{ label: 'Ministry of Education', url: 'https://education.gov.in' }]
+  },
+  {
+    id: 'item-35',
+    title: 'National Digital Health Mission registries scale-up',
+    description: 'Ayushman Bharat Digital Mission crosses 50 crore registered Health IDs, releasing standardized health registries for hospitals.',
+    ministry: 'Ministry of Health and Family Welfare',
+    theme: 'Human Development',
+    status: 'Completed',
+    impact: 'Medium',
+    date: '24 Jun',
+    dateValue: 24,
+    geography: 'national',
+    tags: ['ABDM', 'Health ID', 'Digital Registries'],
+    sources: [{ label: 'NHA', url: 'https://nha.gov.in' }]
+  },
+
+  // Let's add National Security items (Need 5 more to reach 8)
+  {
+    id: 'item-36',
+    title: 'Cyber security exercises for defense services',
+    description: 'Tri-services command conducts a 4-day defensive cyber training simulation to harden multi-domain defense networks.',
+    ministry: 'Ministry of Defence',
+    theme: 'National Security',
+    status: 'Completed',
+    impact: 'Medium',
+    date: '17 Jun',
+    dateValue: 17,
+    geography: 'national',
+    tags: ['Cyber Command', 'Defence', 'Simulation'],
+    sources: [{ label: 'HQ IDS', url: 'https://ids.nic.in' }]
+  },
+  {
+    id: 'item-37',
+    title: 'Procurement of indigenized tactical radio sets',
+    description: 'Defence ministry signs ₹450 crore deal with domestic vendors for private software-defined secure radios for infantry battalions.',
+    ministry: 'Ministry of Defence',
+    theme: 'National Security',
+    status: 'Initiated',
+    impact: 'Medium',
+    date: '19 Jun',
+    dateValue: 19,
+    geography: 'national',
+    tags: ['Tactical Radio', 'SDR', 'Defence Indigenisation'],
+    sources: [{ label: 'Ministry of Defence', url: 'https://mod.gov.in' }]
+  },
+  {
+    id: 'item-38',
+    title: 'Border Security Force deployment modernised',
+    description: 'BSF gets clearance for smart fencing technology and thermal tracking systems across the western international border.',
+    ministry: 'Ministry of Home Affairs',
+    theme: 'National Security',
+    status: 'Initiated',
+    impact: 'Medium',
+    date: '21 Jun',
+    dateValue: 21,
+    geography: 'national',
+    tags: ['BSF', 'Border Fencing', 'Thermal Sensors', 'Security'],
+    sources: [{ label: 'MHA Press Division', url: 'https://mha.gov.in' }]
+  },
+  {
+    id: 'item-39',
+    title: 'Emergency response command systems in Union Territories',
+    description: 'Home ministry expands unified GIS emergency dial system ERSS to major UT centers for fast distress coordinates.',
+    ministry: 'Ministry of Home Affairs',
+    theme: 'National Security',
+    status: 'Completed',
+    impact: 'Medium',
+    date: '25 Jun',
+    dateValue: 25,
+    geography: 'national',
+    tags: ['ERSS', 'GIS', 'Emergency', 'MHA'],
+    sources: [{ label: 'MHA', url: 'https://mha.gov.in' }]
+  },
+  {
+    id: 'item-40',
+    title: 'Anti-smuggling maritime exercises along East Coast',
+    description: 'Indian Coast Guard conducts surveillance exercise with state customs police to disrupt illicit maritime trafficking channels.',
+    ministry: 'Ministry of Defence',
+    theme: 'National Security',
+    status: 'Completed',
+    impact: 'Low',
+    date: '29 Jun',
+    dateValue: 29,
+    geography: 'state: West Bengal',
+    tags: ['Coast Guard', 'Surveillance', 'Anti-smuggling'],
+    sources: [{ label: 'Indian Coast Guard', url: 'https://indiancoastguard.gov.in' }]
+  },
+
+  // Let's add Misc items (Need 11)
+  {
+    id: 'item-41',
+    title: 'Sovereign data hosting guidelines for cloud vendors',
+    description: 'MeitY releases operational specifications for cloud infrastructure partners hosting state-department sensitive datasets.',
+    ministry: 'Ministry of Electronics and IT',
+    theme: 'Misc',
+    status: 'Initiated',
+    impact: 'Medium',
+    date: '22 Jun',
+    dateValue: 22,
+    geography: 'national',
+    tags: ['Cloud Hosting', 'Sovereign Data', 'Data Localization'],
+    sources: [{ label: 'MeitY Guidelines', url: 'https://meity.gov.in' }]
+  },
+  {
+    id: 'item-42',
+    title: 'Panchayati Raj institutional audits digitised',
+    description: 'Ministry mandates full transition to online, real-time auditing platform for rural local bodies to prevent grant diversions.',
+    ministry: 'Ministry of Rural Development',
+    theme: 'Misc',
+    status: 'Completed',
+    impact: 'Medium',
+    date: '16 Jun',
+    dateValue: 16,
+    geography: 'national',
+    tags: ['Panchayat', 'Auditing', 'Rural Grants', 'Transparency'],
+    sources: [{ label: 'Ministry of Panchayati Raj', url: 'https://panchayat.gov.in' }]
+  },
+  {
+    id: 'item-43',
+    title: 'Disaster management command center in Guwahati',
+    description: 'DoNER supports the construction of a modern satellite-coordinated weather tracking and disaster war-room.',
+    ministry: 'Ministry of Development of North Eastern Region',
+    theme: 'Misc',
+    status: 'Announced',
+    impact: 'Low',
+    date: '20 Jun',
+    dateValue: 20,
+    geography: 'state: Mizoram',
+    tags: ['Disaster Management', 'Guwahati', 'Satellite Tracking'],
+    sources: [{ label: 'DoNER Portal', url: 'https://mdoner.gov.in' }]
+  },
+  {
+    id: 'item-44',
+    title: 'Indian diaspora registry upgrades',
+    description: 'MEA updates the electronic MADAD platform to incorporate regional help desks and rapid emergency repatriation services.',
+    ministry: 'Ministry of External Affairs',
+    theme: 'Misc',
+    status: 'Completed',
+    impact: 'Medium',
+    date: '23 Jun',
+    dateValue: 23,
+    geography: 'national',
+    tags: ['MEA', 'Diaspora', 'MADAD', 'Consular'],
+    sources: [{ label: 'MEA Consular Wing', url: 'https://mea.gov.in' }]
+  },
+  {
+    id: 'item-45',
+    title: 'Deepwater harbor expansion in Paradip',
+    description: 'Ports ministry approves ₹1,250 crore layout to expand bulk carrier handling capacity and deep draft berths.',
+    ministry: 'Ministry of Ports, Shipping and Waterways',
+    theme: 'Misc',
+    status: 'Announced',
+    impact: 'Medium',
+    date: '19 Jun',
+    dateValue: 19,
+    geography: 'state: Odisha',
+    tags: ['Ports', 'Paradip', 'Maritime Trade'],
+    sources: [{ label: 'Paradip Port Authority', url: 'https://paradipport.gov.in' }]
+  },
+  {
+    id: 'item-46',
+    title: 'National Green Highway plantation monitoring',
+    description: 'Highways ministry launches a mobile application to geo-tag and monitor survival rates of compensatory forestations.',
+    ministry: 'Ministry of Road Transport and Highways',
+    theme: 'Misc',
+    status: 'Completed',
+    impact: 'Low',
+    date: '28 Jun',
+    dateValue: 28,
+    geography: 'national',
+    tags: ['Highways', 'Green Highways', 'Afforestation', 'Geo-tagging'],
+    sources: [{ label: 'NHAI', url: 'https://nhai.gov.in' }]
+  },
+  {
+    id: 'item-47',
+    title: 'Air Quality Monitoring stations scale-up',
+    description: 'Environment ministry plans 120 new continuous ambient air monitoring stations in NCR and neighboring districts.',
+    ministry: 'Ministry of Environment, Forest and Climate Change',
+    theme: 'Misc',
+    status: 'Announced',
+    impact: 'Medium',
+    date: '25 Jun',
+    dateValue: 25,
+    geography: 'national',
+    tags: ['Air Quality', 'CPCB', 'Pollution Control'],
+    sources: [{ label: 'CPCB', url: 'https://cpcb.nic.in' }]
+  },
+  {
+    id: 'item-48',
+    title: 'Paisa Portal integration with cooperative banks',
+    description: 'Cabinet approves direct electronic subsidy transfer pipeline linking urban cooperative societies to the National Portal.',
+    ministry: 'Union Cabinet',
+    theme: 'Misc',
+    status: 'Initiated',
+    impact: 'Medium',
+    date: '17 Jun',
+    dateValue: 17,
+    geography: 'national',
+    tags: ['Cooperative Banks', 'Subsidy', 'Paisa Portal'],
+    sources: [{ label: 'Ministry of Cooperation', url: 'https://cooperation.gov.in' }]
+  },
+  {
+    id: 'item-49',
+    title: 'Regional Civil Aviation connectivity expansion',
+    description: 'Ministry flags off seven regional flight routes in Central India under the UDAN 5.2 connectivity scheme.',
+    ministry: 'Ministry of Civil Aviation',
+    theme: 'Misc',
+    status: 'Completed',
+    impact: 'Low',
+    date: '22 Jun',
+    dateValue: 22,
+    geography: 'national',
+    tags: ['UDAN', 'Civil Aviation', 'Connectivity'],
+    sources: [{ label: 'AAI', url: 'https://aai.aero' }]
+  },
+  {
+    id: 'item-50',
+    title: 'Geological survey of lithium reserves in J&K',
+    description: 'Cabinet authorizes high-precision drilling surveys to map depth and grade of potential lithium beds in Reasi district.',
+    ministry: 'Union Cabinet',
+    theme: 'Misc',
+    status: 'Initiated',
+    impact: 'Medium',
+    date: '24 Jun',
+    dateValue: 24,
+    geography: 'state: Jammu and Kashmir',
+    tags: ['Lithium reserves', 'GSI', 'Reasi', 'Minerals'],
+    sources: [{ label: 'Geological Survey of India', url: 'https://gsi.gov.in' }]
+  },
+  {
+    id: 'item-51',
+    title: 'Inter-state river water monitoring dashboard launched',
+    description: 'Cabinet launches central telemetry portal to monitor flows across disputed basins in Southern and Western India.',
+    ministry: 'Union Cabinet',
+    theme: 'Misc',
+    status: 'Announced',
+    impact: 'Medium',
+    date: '26 Jun',
+    dateValue: 26,
+    geography: 'national',
+    tags: ['Water sharing', 'Rivers', 'Telemetry', 'CWC'],
+    sources: [{ label: 'Central Water Commission', url: 'https://cwc.gov.in' }]
+  }
+];
