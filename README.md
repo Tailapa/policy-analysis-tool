@@ -66,26 +66,41 @@ Runs the backend and frontend as plain processes on your machine. Useful for poi
 
 ### 1. Backend
 
-```bash
-cd backend
-pip install -r requirements.txt
+The backend's Python dependencies are managed with [uv](https://docs.astral.sh/uv/)
+in an isolated virtual environment at the **project root** (`.venv/`) —
+not inside `backend/`, so the whole repo shares one venv rather than one
+nested per component. `pyproject.toml` and `uv.lock` also live at the root.
 
-cp .env.example .env
-# edit .env:
+```bash
+# from the project root — creates/updates .venv/ and installs pinned deps
+uv sync
+
+cp backend/.env.example backend/.env
+# edit backend/.env:
 #   - MONGODB_URI: mongodb://localhost:27017 for a local Mongo, or your Atlas connection string
 #   - JWT_SECRET: generate one with `python -c "import secrets; print(secrets.token_urlsafe(48))"`
 #   - ADMIN_USERS: email:password pairs, comma-separated (see "Admin credentials" below)
 
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+# run the API — --directory makes uv cd into backend/ before running, so
+# app.main:app resolves and backend/.env is picked up, while still using
+# the root .venv
+uv run --directory backend uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-The backend reads `backend/.env` relative to its own working directory, so run the `uvicorn` command from inside `backend/`.
+`uv sync` reads `pyproject.toml` and installs exactly what's pinned in
+`uv.lock` — re-run it after pulling changes that touch dependencies. See
+`documentation.md` for the full `uv` command reference (adding a dependency,
+recreating the venv from scratch, etc.).
 
-Seed ministries + a dev issue, and load real data, the same way as the Docker flow but without `docker compose run --rm backend`:
+The backend reads `backend/.env` relative to its own working directory,
+which is why the command above uses `--directory backend`.
+
+Seed ministries + a dev issue, and load real data, the same way as the
+Docker flow but without `docker compose run --rm backend`:
 
 ```bash
-python -m app.scripts.seed_dev
-python -m app.scripts.backfill_issue "../data/India Governance Watch - 1st May to 15th May.pdf"
+uv run --directory backend python -m app.scripts.seed_dev
+uv run --directory backend python -m app.scripts.backfill_issue "../data/India Governance Watch - 1st May to 15th May.pdf"
 ```
 
 ### 2. Frontend
@@ -106,7 +121,7 @@ Open **http://localhost:3000**.
 If port 8000 is already in use, pass a different `--port` to `uvicorn` and update `VITE_API_BASE_URL` to match:
 
 ```bash
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8010
+uv run --directory backend uvicorn app.main:app --host 0.0.0.0 --port 8010
 # ...and in the other terminal:
 VITE_API_BASE_URL=http://localhost:8010 npm run dev
 ```
@@ -123,9 +138,9 @@ ADMIN_USERS=admin:admin,editor1:somePassword,editor2:anotherPassword
 
 - Add more admins by adding more pairs, then restart the backend.
 - Changing an existing pair's password and restarting rotates that admin's password in place (it's not a one-time seed).
-- To sync immediately without restarting the server, run from `backend/`:
+- To sync immediately without restarting the server, run from the project root:
   ```bash
-  python -c "
+  uv run --directory backend python -c "
   import asyncio
   from app.core.db import get_database
   from app.services.admin_sync import sync_env_admins
@@ -156,8 +171,7 @@ The Login page's on-screen credential hint is static UI text and won't reflect a
 ## Running tests
 
 ```bash
-cd backend
-python -m pytest -q --cov=app.routers --cov=app.services --cov-report=term-missing
+uv run --directory backend python -m pytest -q --cov=app.routers --cov=app.services --cov-report=term-missing
 ```
 
 Or inside Docker: `docker compose run --rm backend python -m pytest -q`.
@@ -176,7 +190,15 @@ Or inside Docker: `docker compose run --rm backend python -m pytest -q`.
 │   │   ├── schemas/         # API request/response shapes
 │   │   ├── data/             # ministry seed list, state gazetteer, source URL lookup
 │   │   └── scripts/           # seed_dev, backfill_issue, retry_embeddings
-│   └── tests/
+│   ├── tests/
+│   └── requirements.txt   # pinned deps for the Docker image (pip-based build)
 ├── data/                  # sample source PDFs
+├── pyproject.toml         # backend deps for local dev (uv-based, see Option B above)
+├── uv.lock                # locked/pinned versions resolved from pyproject.toml
+├── .venv/                 # local dev virtual environment (gitignored, created by `uv sync`)
 └── docker-compose.yml
 ```
+
+`requirements.txt` (used by the Docker build) and `pyproject.toml`/`uv.lock`
+(used by local `uv sync`) declare the same dependencies from two different
+package managers — keep them in sync by hand if you add/remove a dependency.

@@ -85,7 +85,15 @@
       "Bash(curl -s http://localhost:8010/api/ministries)",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('ministries count:', len\\(d\\)\\)\")",
       "Bash(python -c \"import sys,json; print\\('total items:', json.load\\(sys.stdin\\)['total']\\)\")",
-      "Bash(curl -s \"http://localhost:8010/api/issues\")"
+      "Bash(curl -s \"http://localhost:8010/api/issues\")",
+      "Bash(uv venv *)",
+      "Bash(.venv/Scripts/python.exe -c \"import fastapi, motor, rapidfuzz, bcrypt; print\\('all core deps import cleanly'\\)\")",
+      "Bash(MONGODB_URI=mongodb://localhost:27017 .venv/Scripts/python.exe -m pytest -q)",
+      "Bash(UV_PROJECT_ENVIRONMENT=../.venv uv sync)",
+      "Bash(\"d:/Varahe/IGW/.venv/Scripts/python.exe\" -c \"import fastapi; print\\('ok'\\)\")",
+      "Bash(uv help *)",
+      "Bash(uv --help)",
+      "Bash(UV_PROJECT_ENVIRONMENT=test uv sync --help)"
     ]
   }
 }
