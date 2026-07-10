@@ -2,25 +2,42 @@ import React, { useState, useMemo } from 'react';
 import { Ministry, Item, Pillar, Status, Impact, Issue } from '../types';
 import { ALL_ISSUES_ID } from '../constants';
 import {
-  Building2, 
-  Coins, 
-  Briefcase, 
-  Shield, 
-  Train, 
-  Cpu, 
-  Flame, 
-  Lock, 
-  Compass, 
-  Home, 
-  Globe, 
-  HeartPulse, 
-  Zap, 
-  Sprout, 
-  Plane, 
-  Anchor, 
-  Milestone, 
-  Leaf, 
+  Building2,
+  Coins,
+  Briefcase,
+  Shield,
+  Train,
+  Cpu,
+  Flame,
+  Lock,
+  Compass,
+  Home,
+  Globe,
+  HeartPulse,
+  Zap,
+  Sprout,
+  Plane,
+  Anchor,
+  Milestone,
+  Leaf,
   GraduationCap,
+  Factory,
+  Mountain,
+  Radio,
+  Users,
+  Landmark,
+  Palette,
+  Fish,
+  Droplet,
+  Scale,
+  Hammer,
+  Pickaxe,
+  UserCog,
+  Scissors,
+  Baby,
+  Trophy,
+  Rocket,
+  Atom,
   Search,
   ArrowLeft,
   ChevronDown,
@@ -111,7 +128,9 @@ export default function Ministries({
   // Map icon strings to Lucide components
   const iconMap: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
     Building2, Coins, Briefcase, Shield, Train, Cpu, Flame, Lock, Compass, Home, Globe,
-    HeartPulse, Zap, Sprout, Plane, Anchor, Milestone, Leaf, GraduationCap
+    HeartPulse, Zap, Sprout, Plane, Anchor, Milestone, Leaf, GraduationCap,
+    Factory, Mountain, Radio, Users, Landmark, Palette, Fish, Droplet, Scale,
+    Hammer, Pickaxe, UserCog, Scissors, Baby, Trophy, Rocket, Atom
   };
 
   // 1. Filtered list of ministries for directory page
@@ -289,12 +308,10 @@ export default function Ministries({
                     }`}>
                       {ministry.name}
                     </h3>
-                    {ministry.minister ? (
+                    {ministry.minister && (
                       <p className={`text-xs mt-1 ${isDark ? 'text-zinc-400' : 'text-zinc-500 font-medium'}`}>
                         Minister: <span className="font-bold">{ministry.minister}</span>
                       </p>
-                    ) : (
-                      <p className="text-xs text-zinc-400 mt-1 italic font-medium">Under Prime Minister</p>
                     )}
                     <div className="mt-5 flex items-center justify-between">
                       <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
@@ -342,12 +359,10 @@ export default function Ministries({
                 }`}>
                   {selectedMinistry}
                 </h2>
-                {activeMinistryData?.minister ? (
+                {activeMinistryData?.minister && (
                   <p className={`text-sm mt-1 ${isDark ? 'text-zinc-400' : 'text-zinc-600 font-medium'}`}>
                     Minister in Charge: <span className={`font-bold ${isDark ? 'text-zinc-200' : 'text-zinc-900'}`}>{activeMinistryData.minister}</span>
                   </p>
-                ) : (
-                  <p className="text-xs text-zinc-500 mt-1 italic">Inter-Ministerial / Cabinet oversight</p>
                 )}
               </div>
             </div>

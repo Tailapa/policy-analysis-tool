@@ -135,6 +135,64 @@ asyncio.run(main())
 "
 ```
 
+### 1.9 Deploy to Fly.io (production)
+
+Live URLs:
+- **Frontend**: https://india-governance-watch.fly.dev
+- **Backend API**: https://india-governance-watch-api.fly.dev (`/docs` for interactive API docs)
+
+Two separate Fly apps, deployed from two different config files:
+
+| App | Config | Deployed from |
+|---|---|---|
+| `india-governance-watch-api` | `backend/fly.toml` (uses `backend/Dockerfile`) | `backend/` |
+| `india-governance-watch` | `fly.toml` at repo root (uses `Dockerfile.frontend.prod` + `nginx.conf`) | repo root |
+
+Database is MongoDB Atlas (not hosted on Fly — Fly has no managed MongoDB
+offering). Atlas Network Access is set to allow `0.0.0.0/0`, since Fly
+machines don't have a fixed outbound IP by default.
+
+**Redeploy the backend** after a code change:
+
+```bash
+cd backend
+flyctl deploy --app india-governance-watch-api
+```
+
+**Redeploy the frontend** after a code change:
+
+```bash
+# from the repo root
+flyctl deploy --app india-governance-watch
+```
+
+The frontend bakes `VITE_API_BASE_URL` into the JS bundle at *build* time
+(set in `fly.toml`'s `[build.args]`) — if the backend's URL ever changes,
+update it there before redeploying the frontend; changing it after the fact
+requires a rebuild, not just a restart.
+
+**Update a secret** (e.g. rotate `JWT_SECRET`, add another `ADMIN_USERS`
+pair, change `MONGODB_URI`):
+
+```bash
+flyctl secrets set ADMIN_USERS="admin:admin,newadmin:pass" --app india-governance-watch-api
+# setting a secret triggers an automatic redeploy of that app
+```
+
+**Check logs / status:**
+
+```bash
+flyctl logs --app india-governance-watch-api
+flyctl status --app india-governance-watch-api
+flyctl logs --app india-governance-watch
+flyctl status --app india-governance-watch
+```
+
+**Cost note:** both apps are configured with `min_machines_running = 0`
+(scale-to-zero when idle) to minimize cost on Fly's free/hobby tier — the
+tradeoff is a several-second cold start on the first request after a period
+of no traffic.
+
 ---
 
 ## 2. General-purpose cheat sheet (Docker / uvicorn / npm projects)
@@ -338,6 +396,59 @@ show collections
 db.policy_items.countDocuments({})
 db.policy_items.findOne()
 ```
+
+### 2.8 Fly.io
+
+```bash
+flyctl auth login                       # authenticate (opens a browser)
+flyctl auth whoami                       # check who you're logged in as
+
+flyctl apps create <name>                  # reserve an app name (globally unique across all of Fly)
+flyctl apps list                            # list your apps
+flyctl apps destroy <name>                    # permanently delete an app
+
+flyctl deploy --app <name>                       # build (from fly.toml + Dockerfile in cwd) and deploy
+flyctl deploy --app <name> --config path/to/fly.toml  # use a specific config file
+flyctl deploy --app <name> --build-arg KEY=value       # pass a Docker build arg for this deploy only
+
+flyctl status --app <name>                # machine state + health checks
+flyctl logs --app <name>                   # tail logs (Ctrl+C to stop watching)
+flyctl logs --app <name> --no-tail          # dump recent logs and exit (good for scripting/one-shot checks)
+
+flyctl secrets set KEY=value --app <name>          # set one or more secrets, triggers a redeploy
+flyctl secrets import --app <name> < path/to/.env    # bulk-set from an env-file-shaped stdin stream
+                                                        # (strip comments/blank lines first — see §1.9)
+flyctl secrets list --app <name>                        # list secret NAMES only (values are never shown again)
+flyctl secrets unset KEY --app <name>                     # remove a secret
+
+flyctl ssh console --app <name>            # shell into a running machine
+flyctl machine list --app <name>            # list machines (an app can have several, e.g. for HA)
+flyctl machine restart <machine-id>          # restart one machine without a full redeploy
+```
+
+**Things that bite people new to Fly:**
+- **Env vars baked into a client-side JS bundle at build time** (Vite's
+  `VITE_*`, Next.js's `NEXT_PUBLIC_*`, etc.) can't be changed by setting a
+  Fly secret — secrets are injected as *runtime* environment variables, but
+  the bundle was already built before the container ever started. Pass them
+  as `[build.args]` in `fly.toml` (or `--build-arg`) instead, and rebuild
+  (redeploy) whenever the value needs to change.
+- **No managed MongoDB** — Fly doesn't offer a MongoDB service. Either point
+  at an external provider (Atlas, etc.) or self-host it on a Fly volume,
+  which then makes you responsible for backups/HA yourself.
+- **Default outbound IPs are shared/dynamic**, not fixed. If a downstream
+  service (a database, a third-party API) allowlists specific IPs, either
+  allowlist broadly (`0.0.0.0/0`, relying on auth/TLS instead of network
+  restriction) or set up a static outbound IP on Fly first.
+- **`auto_stop_machines`/`min_machines_running = 0`** (scale-to-zero) saves
+  cost but means the first request after idle pays a cold-start cost — the
+  machine has to boot before it can answer. Set `min_machines_running = 1`
+  if you need consistently fast first-response latency and are OK paying for
+  an always-on machine.
+- A `Dockerfile` with `COPY . .` means secrets/`.env` files must be excluded
+  via `.dockerignore`, or they get baked into the image layer (and are
+  recoverable by anyone who can pull the image) — never rely on `.gitignore`
+  alone for this, they're unrelated to what Docker includes in a build.
 
 From outside `mongosh`, one-off queries via Docker:
 

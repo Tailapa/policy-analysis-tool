@@ -6,6 +6,12 @@ A dashboard tracking Viksit Bharat policy and administrative developments, publi
 - **Backend**: FastAPI, Motor (async MongoDB driver), JWT auth (`backend/`)
 - **Database**: MongoDB 7 (local via Docker, or a hosted cluster like Atlas)
 
+**Live deployment (Fly.io):**
+- Frontend: https://india-governance-watch.fly.dev
+- Backend API: https://india-governance-watch-api.fly.dev (`/docs` for interactive API docs)
+
+See `documentation.md` §1.9 for redeploy commands and §2.8 for a general Fly.io reference.
+
 ---
 
 ## Prerequisites

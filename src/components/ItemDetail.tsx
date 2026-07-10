@@ -1,6 +1,7 @@
 import React from 'react';
 import { Item } from '../types';
 import { Building2, MapPin, ExternalLink, ArrowLeft } from 'lucide-react';
+import nfprcLogo from '../../assets/NFPRC_logo.png';
 
 interface ItemDetailProps {
   item: Item;
@@ -35,23 +36,10 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, theme, issu
         </div>
 
         {/* Small Card with NFPRC logo */}
-        <div className={`rounded-2xl p-3 flex items-center gap-3 border shadow-sm select-none ${
-          isDark ? 'bg-zinc-950/85 border-zinc-800 text-zinc-100' : 'bg-white/10 border-white/20 text-white'
+        <div className={`rounded-2xl p-3 flex items-center border shadow-sm select-none ${
+          isDark ? 'bg-zinc-950/85 border-zinc-800' : 'bg-white/10 border-white/20'
         }`}>
-          <svg width="28" height="28" viewBox="0 0 40 40" aria-hidden="true" className="flex-shrink-0">
-            <circle cx="20" cy="6" r="2.6" fill={isDark ? "#6366F1" : "#FFFFFF"}></circle>
-            <circle cx="34" cy="20" r="2.6" fill={isDark ? "#6366F1" : "#FFFFFF"}></circle>
-            <circle cx="20" cy="34" r="2.6" fill={isDark ? "#6366F1" : "#FFFFFF"}></circle>
-            <circle cx="6" cy="20" r="2.6" fill={isDark ? "#6366F1" : "#FFFFFF"}></circle>
-            <path d="M20 10 C24 10 27 13 27 17 C23 17 20 14 20 10 Z" fill="#F43F5E"></path>
-            <path d="M30 20 C30 24 27 27 23 27 C23 23 26 20 30 20 Z" fill={isDark ? "#6366F1" : "#F38D64"}></path>
-            <path d="M20 30 C16 30 13 27 13 23 C17 23 20 26 20 30 Z" fill="#10B981"></path>
-            <path d="M10 20 C10 16 13 13 17 13 C17 17 14 20 10 20 Z" fill="#F43F5E"></path>
-          </svg>
-          <div className="leading-tight text-left">
-            <span className="block font-bold text-[9px] tracking-wider font-sans">NFPRC</span>
-            <span className={`block font-medium text-[8px] tracking-widest font-sans ${isDark ? 'text-zinc-500' : 'text-white/60'}`}>FOUNDATION</span>
-          </div>
+          <img src={nfprcLogo} alt="NFPRC Foundation" className="h-6 w-auto rounded" />
         </div>
       </div>
 

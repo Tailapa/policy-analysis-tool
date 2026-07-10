@@ -1,6 +1,7 @@
 import React from 'react';
 import { ActiveTab, TextSize } from '../types';
 import { Sun, Moon, X } from 'lucide-react';
+import nfprcLogo from '../../assets/NFPRC_logo.png';
 
 interface MastheadProps {
   activeTab: ActiveTab;
@@ -33,23 +34,12 @@ export default function Masthead({
       isDark ? 'border-zinc-800 bg-[#09090B]' : 'border-zinc-200 bg-white shadow-sm'
     }`}>
       <div className="flex items-center gap-4 flex-wrap md:flex-nowrap">
-        {/* NFPRC Branded Pinwheel Logo */}
-        <div className="flex items-center gap-3">
-          <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true" className="flex-shrink-0">
-            <circle cx="20" cy="6" r="2.6" fill="#185FA5"></circle>
-            <circle cx="34" cy="20" r="2.6" fill="#1D9E75"></circle>
-            <circle cx="20" cy="34" r="2.6" fill="#7F77DD"></circle>
-            <circle cx="6" cy="20" r="2.6" fill="#D85A30"></circle>
-            <path d="M20 10 C24 10 27 13 27 17 C23 17 20 14 20 10 Z" fill="#D85A30"></path>
-            <path d="M30 20 C30 24 27 27 23 27 C23 23 26 20 30 20 Z" fill="#185FA5"></path>
-            <path d="M20 30 C16 30 13 27 13 23 C17 23 20 26 20 30 Z" fill="#1D9E75"></path>
-            <path d="M10 20 C10 16 13 13 17 13 C17 17 14 20 10 20 Z" fill="#7F77DD"></path>
-          </svg>
-          <div className="leading-tight">
-            <span className={`block font-bold text-[11px] tracking-wider font-sans ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>NFPRC</span>
-            <span className="block font-medium text-[9px] tracking-widest text-zinc-500 font-sans">FOUNDATION</span>
-          </div>
-        </div>
+        {/* NFPRC Foundation Logo */}
+        <img
+          src={nfprcLogo}
+          alt="NFPRC Foundation"
+          className={`h-9 w-auto flex-shrink-0 ${isDark ? 'bg-white rounded-md px-1.5 py-1' : ''}`}
+        />
 
         {/* Vertical Divider */}
         <div className={`hidden sm:block w-px h-8 ${isDark ? 'bg-zinc-800' : 'bg-zinc-200'}`}></div>
