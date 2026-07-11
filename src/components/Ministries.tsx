@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Ministry, Item, Pillar, Status, Impact, Issue } from '../types';
 import { ALL_ISSUES_ID } from '../constants';
+import MinistryFingerprintCard from './governance/MinistryFingerprintCard';
+import MinistryBulkGenerateButton from './governance/MinistryBulkGenerateButton';
 import {
   Building2,
   Coins,
@@ -58,6 +60,7 @@ interface MinistriesProps {
   setCurrentIssueId: (id: string) => void;
   issues: Issue[];
   ministries: Ministry[];
+  isAdmin?: boolean;
 }
 
 export default function Ministries({
@@ -69,7 +72,8 @@ export default function Ministries({
   currentIssueId,
   setCurrentIssueId,
   issues,
-  ministries
+  ministries,
+  isAdmin
 }: MinistriesProps) {
   const isDark = theme === 'dark';
   const activeItems = items || [];
@@ -367,16 +371,23 @@ export default function Ministries({
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap justify-end">
               <span className={`text-xs font-bold px-4 py-2 rounded-full border ${
-                isDark 
-                  ? 'text-indigo-300 bg-indigo-950/40 border-indigo-900/40' 
+                isDark
+                  ? 'text-indigo-300 bg-indigo-950/40 border-indigo-900/40'
                   : 'text-indigo-800 bg-indigo-50 border-indigo-200 shadow-sm'
               }`}>
                 {activeItems.filter(item => item.ministry === selectedMinistry).length} active updates
               </span>
+              {isAdmin && activeMinistryData?.id && (
+                <MinistryBulkGenerateButton ministryId={activeMinistryData.id} isDark={isDark} />
+              )}
             </div>
           </div>
+
+          {activeMinistryData?.id && (
+            <MinistryFingerprintCard ministryId={activeMinistryData.id} isDark={isDark} />
+          )}
 
           {/* Inline Filter Bar */}
           <div className={`p-5 rounded-2xl border shadow-xl flex flex-wrap gap-3 items-center justify-between transition-all ${

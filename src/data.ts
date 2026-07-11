@@ -8,25 +8,25 @@ export const PAST_ISSUES: Issue[] = [
 ];
 
 export const MINISTRIES: Ministry[] = [
-  { name: 'Union Cabinet', minister: 'Narendra Modi (Chair)', icon: 'Building2', itemCount: 10 },
-  { name: 'Ministry of Finance', minister: 'Nirmala Sitharaman', icon: 'Coins', itemCount: 8 },
-  { name: 'Ministry of Commerce and Industry', minister: 'Piyush Goyal', icon: 'Briefcase', itemCount: 6 },
-  { name: 'Ministry of Defence', minister: 'Rajnath Singh', icon: 'Shield', itemCount: 5 },
-  { name: 'Ministry of Railways', minister: 'Ashwini Vaishnaw', icon: 'Train', itemCount: 4 },
-  { name: 'Ministry of Electronics and IT', minister: 'Ashwini Vaishnaw', icon: 'Cpu', itemCount: 4 },
-  { name: 'Ministry of Petroleum and Natural Gas', minister: 'Hardeep Singh Puri', icon: 'Flame', itemCount: 3 },
-  { name: 'Ministry of Home Affairs', minister: 'Amit Shah', icon: 'Lock', itemCount: 2 },
-  { name: 'Ministry of Development of North Eastern Region', minister: 'Jyotiraditya Scindia', icon: 'Compass', itemCount: 1 },
-  { name: 'Ministry of Rural Development', minister: 'Giriraj Singh', icon: 'Home', itemCount: 1 },
-  { name: 'Ministry of External Affairs', minister: 'Dr. S. Jaishankar', icon: 'Globe', itemCount: 1 },
-  { name: 'Ministry of Health and Family Welfare', minister: 'Jagat Prakash Nadda', icon: 'HeartPulse', itemCount: 1 },
-  { name: 'Ministry of Power', minister: 'Manohar Lal Khattar', icon: 'Zap', itemCount: 1 },
-  { name: 'Ministry of Agriculture and Farmers Welfare', minister: 'Shivraj Singh Chouhan', icon: 'Sprout', itemCount: 1 },
-  { name: 'Ministry of Civil Aviation', minister: 'K. Ram Mohan Naidu', icon: 'Plane', itemCount: 1 },
-  { name: 'Ministry of Ports, Shipping and Waterways', minister: 'Sarbananda Sonowal', icon: 'Anchor', itemCount: 1 },
-  { name: 'Ministry of Road Transport and Highways', minister: 'Nitin Gadkari', icon: 'Milestone', itemCount: 1 },
-  { name: 'Ministry of Environment, Forest and Climate Change', minister: 'Bhupender Yadav', icon: 'Leaf', itemCount: 1 },
-  { name: 'Ministry of Education', minister: 'Dharmendra Pradhan', icon: 'GraduationCap', itemCount: 1 }
+  { id: 'union-cabinet', name: 'Union Cabinet', minister: 'Narendra Modi (Chair)', icon: 'Building2', itemCount: 10 },
+  { id: 'ministry-of-finance', name: 'Ministry of Finance', minister: 'Nirmala Sitharaman', icon: 'Coins', itemCount: 8 },
+  { id: 'ministry-of-commerce-and-industry', name: 'Ministry of Commerce and Industry', minister: 'Piyush Goyal', icon: 'Briefcase', itemCount: 6 },
+  { id: 'ministry-of-defence', name: 'Ministry of Defence', minister: 'Rajnath Singh', icon: 'Shield', itemCount: 5 },
+  { id: 'ministry-of-railways', name: 'Ministry of Railways', minister: 'Ashwini Vaishnaw', icon: 'Train', itemCount: 4 },
+  { id: 'ministry-of-electronics-and-it', name: 'Ministry of Electronics and IT', minister: 'Ashwini Vaishnaw', icon: 'Cpu', itemCount: 4 },
+  { id: 'ministry-of-petroleum-and-natural-gas', name: 'Ministry of Petroleum and Natural Gas', minister: 'Hardeep Singh Puri', icon: 'Flame', itemCount: 3 },
+  { id: 'ministry-of-home-affairs', name: 'Ministry of Home Affairs', minister: 'Amit Shah', icon: 'Lock', itemCount: 2 },
+  { id: 'ministry-of-development-of-north-eastern-region', name: 'Ministry of Development of North Eastern Region', minister: 'Jyotiraditya Scindia', icon: 'Compass', itemCount: 1 },
+  { id: 'ministry-of-rural-development', name: 'Ministry of Rural Development', minister: 'Giriraj Singh', icon: 'Home', itemCount: 1 },
+  { id: 'ministry-of-external-affairs', name: 'Ministry of External Affairs', minister: 'Dr. S. Jaishankar', icon: 'Globe', itemCount: 1 },
+  { id: 'ministry-of-health-and-family-welfare', name: 'Ministry of Health and Family Welfare', minister: 'Jagat Prakash Nadda', icon: 'HeartPulse', itemCount: 1 },
+  { id: 'ministry-of-power', name: 'Ministry of Power', minister: 'Manohar Lal Khattar', icon: 'Zap', itemCount: 1 },
+  { id: 'ministry-of-agriculture-and-farmers-welfare', name: 'Ministry of Agriculture and Farmers Welfare', minister: 'Shivraj Singh Chouhan', icon: 'Sprout', itemCount: 1 },
+  { id: 'ministry-of-civil-aviation', name: 'Ministry of Civil Aviation', minister: 'K. Ram Mohan Naidu', icon: 'Plane', itemCount: 1 },
+  { id: 'ministry-of-ports-shipping-and-waterways', name: 'Ministry of Ports, Shipping and Waterways', minister: 'Sarbananda Sonowal', icon: 'Anchor', itemCount: 1 },
+  { id: 'ministry-of-road-transport-and-highways', name: 'Ministry of Road Transport and Highways', minister: 'Nitin Gadkari', icon: 'Milestone', itemCount: 1 },
+  { id: 'ministry-of-environment-forest-and-climate-change', name: 'Ministry of Environment, Forest and Climate Change', minister: 'Bhupender Yadav', icon: 'Leaf', itemCount: 1 },
+  { id: 'ministry-of-education', name: 'Ministry of Education', minister: 'Dharmendra Pradhan', icon: 'GraduationCap', itemCount: 1 }
 ];
 
 export const ITEMS: Item[] = [

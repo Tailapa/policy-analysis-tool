@@ -1,7 +1,16 @@
-import React from 'react';
-import { Item } from '../types';
-import { Building2, MapPin, ExternalLink, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Item, PolicyIntelligence, PolicyGovernance } from '../types';
+import { Building2, MapPin, ExternalLink, ArrowLeft, Sparkles, Network } from 'lucide-react';
 import nfprcLogo from '../../assets/NFPRC_logo.png';
+import { fetchItemIntelligence, fetchItemGovernance } from '../api';
+import PendingIntelligence from './intelligence/PendingIntelligence';
+import SourcesConsulted from './intelligence/SourcesConsulted';
+import { FRAMEWORK_PANELS } from './intelligence/registry';
+import PendingGovernance from './governance/PendingGovernance';
+import { GOVERNANCE_PANELS } from './governance/registry';
+import GovernanceSynthesis from './governance/GovernanceSynthesis';
+import ItemEvolutionPanel from './governance/ItemEvolutionPanel';
+import DownloadPdfButton from './DownloadPdfButton';
 
 interface ItemDetailProps {
   item: Item;
@@ -9,13 +18,40 @@ interface ItemDetailProps {
   onFilterMinistry?: (ministryName: string) => void;
   theme: 'light' | 'dark';
   issueLabel?: string;
+  isAdmin?: boolean;
 }
 
-export default function ItemDetail({ item, onBack, onFilterMinistry, theme, issueLabel }: ItemDetailProps) {
+type DetailTab = 'Summary' | 'Intelligence' | 'Governance';
+
+export default function ItemDetail({ item, onBack, onFilterMinistry, theme, issueLabel, isAdmin }: ItemDetailProps) {
   const isState = item.geography.startsWith('state:');
   const stateName = isState ? item.geography.replace('state:', '').trim() : '';
 
   const isDark = theme === 'dark';
+
+  const [detailTab, setDetailTab] = useState<DetailTab>('Summary');
+  const [intelligence, setIntelligence] = useState<PolicyIntelligence | null | undefined>(undefined);
+  const [governance, setGovernance] = useState<PolicyGovernance | null | undefined>(undefined);
+
+  useEffect(() => {
+    // undefined = not fetched yet, null = fetched and pending, object = ready
+    setIntelligence(undefined);
+    setGovernance(undefined);
+  }, [item.id]);
+
+  useEffect(() => {
+    if (detailTab !== 'Intelligence' || intelligence !== undefined) return;
+    fetchItemIntelligence(item.id)
+      .then((status) => setIntelligence(status.intelligence))
+      .catch(() => setIntelligence(null));
+  }, [detailTab, item.id, intelligence]);
+
+  useEffect(() => {
+    if (detailTab !== 'Governance' || governance !== undefined) return;
+    fetchItemGovernance(item.id)
+      .then((status) => setGovernance(status.governance))
+      .catch(() => setGovernance(null));
+  }, [detailTab, item.id, governance]);
 
   return (
     <div className={`rounded-[2.5rem] border overflow-hidden shadow-2xl max-w-4xl mx-auto my-6 animate-fade-in transition-all ${
@@ -31,8 +67,8 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, theme, issu
           }`}>
             INDIA GOVERNANCE WATCH
           </span>
-          <h2 className="text-xl md:text-2xl font-extrabold font-display tracking-tight">Policy Brief</h2>
-          <p className={`text-sm mt-1 ${isDark ? 'text-zinc-400' : 'text-zinc-100/80'}`}>Viksit Bharat's policy and administrative developments</p>
+          <h2 className="text-xl md:text-2xl font-extrabold font-display tracking-tight">{item.title}</h2>
+          <p className={`text-sm mt-1 ${isDark ? 'text-zinc-400' : 'text-zinc-100/80'}`}>{item.ministry}</p>
         </div>
 
         {/* Small Card with NFPRC logo */}
@@ -47,7 +83,7 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, theme, issu
         {/* Back Link */}
         <button
           onClick={onBack}
-          className={`flex items-center gap-2 text-sm font-bold mb-6 transition-colors group cursor-pointer ${
+          className={`no-print flex items-center gap-2 text-sm font-bold mb-6 transition-colors group cursor-pointer ${
             isDark ? 'text-indigo-400 hover:text-indigo-300' : 'text-indigo-700 hover:text-indigo-900'
           }`}
         >
@@ -55,6 +91,38 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, theme, issu
           <span>Back to directory</span>
         </button>
 
+        {/* Summary | Policy Intelligence tab strip */}
+        <div className={`no-print inline-flex gap-1.5 p-1 rounded-full shadow-inner border mb-6 transition-all ${
+          isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
+        }`}>
+          {(['Summary', 'Intelligence', 'Governance'] as DetailTab[]).map((tab) => {
+            const isActive = detailTab === tab;
+            return (
+              <button
+                key={tab}
+                onClick={() => setDetailTab(tab)}
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  isActive
+                    ? isDark
+                      ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/50'
+                      : 'bg-white text-zinc-900 shadow-sm border border-zinc-200'
+                    : isDark
+                      ? 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30'
+                      : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50'
+                }`}
+              >
+                {tab === 'Intelligence' && <Sparkles size={12} />}
+                {tab === 'Governance' && <Network size={12} />}
+                <span>
+                  {tab === 'Intelligence' ? 'Policy Intelligence' : tab === 'Governance' ? 'Governance Intelligence' : tab}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {detailTab === 'Summary' && (
+        <>
         {/* Full Title */}
         <h1 className={`text-2xl md:text-3xl font-extrabold font-display tracking-tight mb-5 leading-tight ${
           isDark ? 'text-zinc-100' : 'text-zinc-900'
@@ -230,6 +298,68 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, theme, issu
             ))}
           </ul>
         </div>
+        </>
+        )}
+
+        {detailTab === 'Intelligence' && (
+          <div className="space-y-5">
+            {intelligence === undefined ? (
+              <div className={`p-10 text-center rounded-[1.75rem] border shadow-xl ${
+                isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
+              }`}>
+                <p className={`text-xs font-semibold ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>Loading analysis…</p>
+              </div>
+            ) : intelligence === null ? (
+              <PendingIntelligence
+                itemId={item.id}
+                isAdmin={!!isAdmin}
+                isDark={isDark}
+                onReady={(intel) => setIntelligence(intel)}
+              />
+            ) : (
+              <>
+                <ItemEvolutionPanel itemId={item.id} isAdmin={!!isAdmin} isDark={isDark} />
+                {FRAMEWORK_PANELS.map((panel) => panel.render(intelligence, isDark))}
+                {intelligence.sources.length > 0 && (
+                  <SourcesConsulted sources={intelligence.sources} isDark={isDark} />
+                )}
+                <DownloadPdfButton isDark={isDark} label="Download Policy Intelligence as PDF" />
+              </>
+            )}
+          </div>
+        )}
+
+        {detailTab === 'Governance' && (
+          <div className="space-y-5">
+            {governance === undefined ? (
+              <div className={`p-10 text-center rounded-[1.75rem] border shadow-xl ${
+                isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
+              }`}>
+                <p className={`text-xs font-semibold ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>Loading analysis…</p>
+              </div>
+            ) : governance === null ? (
+              <PendingGovernance
+                itemId={item.id}
+                isAdmin={!!isAdmin}
+                isDark={isDark}
+                onReady={(gov) => setGovernance(gov)}
+              />
+            ) : (
+              <>
+                {GOVERNANCE_PANELS.map((panel) => panel.render(governance, isDark))}
+                <GovernanceSynthesis
+                  researchBrief={governance.research_brief}
+                  synthesisConclusion={governance.synthesis_conclusion}
+                  isDark={isDark}
+                />
+                {governance.sources.length > 0 && (
+                  <SourcesConsulted sources={governance.sources} isDark={isDark} />
+                )}
+                <DownloadPdfButton isDark={isDark} label="Download Governance Intelligence as PDF" />
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

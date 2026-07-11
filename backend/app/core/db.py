@@ -42,6 +42,7 @@ COLLECTIONS = {
     "issues": "issues",
     "ministries": "ministries",
     "admin_users": "admin_users",
+    "policy_evolution": "policy_evolution",
 }
 
 

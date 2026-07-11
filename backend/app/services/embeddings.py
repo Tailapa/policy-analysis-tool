@@ -18,7 +18,7 @@ async def _embed_text(text: str) -> list[float] | None:
         from google import genai
 
         client = genai.Client(api_key=settings.GEMINI_API_KEY)
-        result = client.models.embed_content(model="text-embedding-004", contents=text)
+        result = client.models.embed_content(model="gemini-embedding-001", contents=text)
         return list(result.embeddings[0].values)
     except Exception:
         logger.exception("Gemini embedding call failed")

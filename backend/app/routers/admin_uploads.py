@@ -11,6 +11,8 @@ from app.schemas.item import serialize_item
 from app.schemas.upload import IssueUploadResponse
 from app.services.embeddings import generate_embedding_for_item
 from app.services.ingestion import IngestionError, ingest_report
+from app.services.policy_governance import generate_governance_for_item
+from app.services.policy_intelligence import generate_intelligence_for_item
 
 router = APIRouter(prefix="/api/admin", tags=["admin", "uploads"])
 
@@ -50,6 +52,8 @@ async def upload_issue(
         # runs after the response-affecting work is done and never blocks or
         # rolls back the publish if it fails.
         background_tasks.add_task(generate_embedding_for_item, db, doc["_id"])
+        background_tasks.add_task(generate_intelligence_for_item, db, doc["_id"])
+        background_tasks.add_task(generate_governance_for_item, db, doc["_id"])
 
     return IssueUploadResponse(
         issue_id=str(issue_doc["_id"]),

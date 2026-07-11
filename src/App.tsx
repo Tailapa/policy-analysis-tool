@@ -3,6 +3,8 @@ import { ActiveTab, TextSize, Item, Issue, Ministry } from './types';
 import Masthead from './components/Masthead';
 import Overview from './components/Overview';
 import Ministries from './components/Ministries';
+import IntelligenceOverview from './components/IntelligenceOverview';
+import Compare from './components/Compare';
 import ItemDetail from './components/ItemDetail';
 import Login from './components/Login';
 import Upload from './components/Upload';
@@ -240,6 +242,7 @@ export default function App() {
             onFilterMinistry={handleFilterMinistryFromDetail}
             theme={theme}
             issueLabel={activeIssueData?.label}
+            isAdmin={isAdmin}
           />
         ) : (
           // Tabs layout
@@ -270,7 +273,22 @@ export default function App() {
                 setCurrentIssueId={setCurrentIssueId}
                 issues={issues}
                 ministries={ministries}
+                isAdmin={isAdmin}
               />
+            )}
+
+            {activeTab === 'Intelligence' && (
+              <IntelligenceOverview
+                theme={theme}
+                items={items}
+                currentIssueId={currentIssueId}
+                issues={issues}
+                isAdmin={isAdmin}
+              />
+            )}
+
+            {activeTab === 'Compare' && (
+              <Compare theme={theme} items={items} ministries={ministries} />
             )}
 
             {activeTab === 'Login' && (
@@ -294,7 +312,7 @@ export default function App() {
       </main>
 
       {/* Footer Block */}
-      <footer className={`mt-16 border-t pt-8 text-center text-xs max-w-7xl mx-auto px-4 ${
+      <footer className={`no-print mt-16 border-t pt-8 text-center text-xs max-w-7xl mx-auto px-4 ${
         isDark ? 'border-zinc-800 text-zinc-500' : 'border-zinc-200 text-zinc-500'
       }`}>
         <p>&copy; 2026 NFPRC Foundation. All rights reserved.</p>

@@ -26,11 +26,11 @@ export default function Masthead({
   onLoginClick,
   onLogout,
 }: MastheadProps) {
-  const tabs: ActiveTab[] = ['Overview', 'Ministries'];
+  const tabs: ActiveTab[] = ['Overview', 'Ministries', 'Intelligence', 'Compare'];
   const isDark = theme === 'dark';
 
   return (
-    <header className={`border-b px-6 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4 max-w-7xl mx-auto w-full transition-all ${
+    <header className={`no-print border-b px-6 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4 max-w-7xl mx-auto w-full transition-all ${
       isDark ? 'border-zinc-800 bg-[#09090B]' : 'border-zinc-200 bg-white shadow-sm'
     }`}>
       <div className="flex items-center gap-4 flex-wrap md:flex-nowrap">

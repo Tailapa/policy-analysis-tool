@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pydantic import BaseModel
 from pymongo.errors import DuplicateKeyError
 
 from app.core.config import get_settings
@@ -19,8 +20,15 @@ from app.schemas.upload import ManualItemCreate
 from app.services.geo_tagger import parse_geography_string
 from app.services.lookups import get_latest_issue_id
 from app.services.ministry_resolver import resolve_ministry
+from app.services.policy_governance import generate_governance_for_item
+from app.services.policy_intelligence import generate_intelligence_for_item
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+
+class BulkGenerateOut(BaseModel):
+    queued_intelligence: int
+    queued_governance: int
 
 
 @router.get("/ministries", response_model=list[MinistryOut])
@@ -82,9 +90,47 @@ async def delete_ministry(
         raise HTTPException(status_code=404, detail="Ministry not found")
 
 
+@router.post(
+    "/ministries/{ministry_id}/generate-intelligence", response_model=BulkGenerateOut, status_code=202
+)
+async def bulk_generate_ministry_intelligence(
+    ministry_id: str,
+    background_tasks: BackgroundTasks,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    _admin: dict = Depends(get_current_admin),
+):
+    """Queues policy Intelligence and/or Governance generation for every item
+    in this ministry that's missing one or the other — a one-click way to
+    fill in a ministry's coverage rather than triggering each item
+    individually. Only queues the pipeline(s) actually missing per item, and
+    never re-queues items that already have both (no force option here —
+    use the per-item admin endpoints for an explicit regeneration)."""
+    oid = parse_object_id(ministry_id, "Ministry not found")
+    ministry_doc = await db[COLLECTIONS["ministries"]].find_one({"_id": oid}, {"_id": 1})
+    if not ministry_doc:
+        raise HTTPException(status_code=404, detail="Ministry not found")
+
+    cursor = db[COLLECTIONS["policy_items"]].find(
+        {"ministry_id": oid, "$or": [{"intelligence": None}, {"governance": None}]},
+        {"_id": 1, "intelligence": 1, "governance": 1},
+    )
+    queued_intelligence = 0
+    queued_governance = 0
+    async for doc in cursor:
+        if doc.get("intelligence") is None:
+            background_tasks.add_task(generate_intelligence_for_item, db, doc["_id"])
+            queued_intelligence += 1
+        if doc.get("governance") is None:
+            background_tasks.add_task(generate_governance_for_item, db, doc["_id"])
+            queued_governance += 1
+
+    return BulkGenerateOut(queued_intelligence=queued_intelligence, queued_governance=queued_governance)
+
+
 @router.post("/items", response_model=ItemOut, status_code=201)
 async def create_manual_item(
     payload: ManualItemCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncIOMotorDatabase = Depends(get_db),
     _admin: dict = Depends(get_current_admin),
 ):
@@ -131,6 +177,8 @@ async def create_manual_item(
     }
     result = await db[COLLECTIONS["policy_items"]].insert_one(doc)
     doc["_id"] = result.inserted_id
+    background_tasks.add_task(generate_intelligence_for_item, db, doc["_id"])
+    background_tasks.add_task(generate_governance_for_item, db, doc["_id"])
 
     ministry_doc = await db[COLLECTIONS["ministries"]].find_one({"_id": ministry_id})
     return serialize_item(doc, ministry_doc["name"] if ministry_doc else payload.ministry)

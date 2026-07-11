@@ -93,7 +93,8 @@
       "Bash(\"d:/Varahe/IGW/.venv/Scripts/python.exe\" -c \"import fastapi; print\\('ok'\\)\")",
       "Bash(uv help *)",
       "Bash(uv --help)",
-      "Bash(UV_PROJECT_ENVIRONMENT=test uv sync --help)"
+      "Bash(UV_PROJECT_ENVIRONMENT=test uv sync --help)",
+      "Bash(powershell -Command \"\\(Get-Item 'd:\\\\Varahe\\\\IGW\\\\knowledge\\\\knowledge.pdf'\\).Length\")"
     ]
   }
 }
