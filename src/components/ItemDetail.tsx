@@ -32,26 +32,34 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, theme, issu
   const [detailTab, setDetailTab] = useState<DetailTab>('Summary');
   const [intelligence, setIntelligence] = useState<PolicyIntelligence | null | undefined>(undefined);
   const [governance, setGovernance] = useState<PolicyGovernance | null | undefined>(undefined);
+  const [intelligenceError, setIntelligenceError] = useState<string | null>(null);
+  const [governanceError, setGovernanceError] = useState<string | null>(null);
+  const [intelligenceRetryKey, setIntelligenceRetryKey] = useState(0);
+  const [governanceRetryKey, setGovernanceRetryKey] = useState(0);
 
   useEffect(() => {
     // undefined = not fetched yet, null = fetched and pending, object = ready
     setIntelligence(undefined);
     setGovernance(undefined);
+    setIntelligenceError(null);
+    setGovernanceError(null);
   }, [item.id]);
 
   useEffect(() => {
     if (detailTab !== 'Intelligence' || intelligence !== undefined) return;
+    setIntelligenceError(null);
     fetchItemIntelligence(item.id)
       .then((status) => setIntelligence(status.intelligence))
-      .catch(() => setIntelligence(null));
-  }, [detailTab, item.id, intelligence]);
+      .catch((err) => setIntelligenceError(err.message || 'Failed to load policy intelligence'));
+  }, [detailTab, item.id, intelligence, intelligenceRetryKey]);
 
   useEffect(() => {
     if (detailTab !== 'Governance' || governance !== undefined) return;
+    setGovernanceError(null);
     fetchItemGovernance(item.id)
       .then((status) => setGovernance(status.governance))
-      .catch(() => setGovernance(null));
-  }, [detailTab, item.id, governance]);
+      .catch((err) => setGovernanceError(err.message || 'Failed to load governance intelligence'));
+  }, [detailTab, item.id, governance, governanceRetryKey]);
 
   return (
     <div className={`rounded-[2.5rem] border overflow-hidden shadow-2xl max-w-4xl mx-auto my-6 animate-fade-in transition-all ${
@@ -303,7 +311,20 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, theme, issu
 
         {detailTab === 'Intelligence' && (
           <div className="space-y-5">
-            {intelligence === undefined ? (
+            {intelligenceError ? (
+              <div className={`p-10 text-center rounded-[1.75rem] border shadow-xl ${
+                isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
+              }`}>
+                <p className={`text-sm font-bold ${isDark ? 'text-rose-400' : 'text-rose-600'}`}>Couldn't load Policy Intelligence</p>
+                <p className={`text-xs mt-1.5 ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>{intelligenceError}</p>
+                <button
+                  onClick={() => { setIntelligence(undefined); setIntelligenceRetryKey((k) => k + 1); }}
+                  className="mt-4 px-5 py-2 bg-indigo-600 text-white text-xs font-bold rounded-full hover:bg-indigo-500 transition-colors cursor-pointer"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : intelligence === undefined ? (
               <div className={`p-10 text-center rounded-[1.75rem] border shadow-xl ${
                 isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
               }`}>
@@ -331,7 +352,20 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, theme, issu
 
         {detailTab === 'Governance' && (
           <div className="space-y-5">
-            {governance === undefined ? (
+            {governanceError ? (
+              <div className={`p-10 text-center rounded-[1.75rem] border shadow-xl ${
+                isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
+              }`}>
+                <p className={`text-sm font-bold ${isDark ? 'text-rose-400' : 'text-rose-600'}`}>Couldn't load Governance Intelligence</p>
+                <p className={`text-xs mt-1.5 ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>{governanceError}</p>
+                <button
+                  onClick={() => { setGovernance(undefined); setGovernanceRetryKey((k) => k + 1); }}
+                  className="mt-4 px-5 py-2 bg-indigo-600 text-white text-xs font-bold rounded-full hover:bg-indigo-500 transition-colors cursor-pointer"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : governance === undefined ? (
               <div className={`p-10 text-center rounded-[1.75rem] border shadow-xl ${
                 isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
               }`}>

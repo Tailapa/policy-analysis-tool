@@ -85,14 +85,19 @@ class SynthesisResult(BaseModel):
 
 
 class WickednessOut(WickednessResult):
+    """Overrides `brief` with a default so governance docs generated before
+    this field existed still validate — the frontend's AnalyticalBrief
+    component already no-ops on an empty string."""
+
     overall_score: float
+    brief: str = ""
 
 
 class GovernanceGenomeOut(BaseModel):
     vector: list[float]
     dimensions: list[str]
     reasoning: str
-    brief: str
+    brief: str = ""
     confidence: ConfidenceLevel
 
 
