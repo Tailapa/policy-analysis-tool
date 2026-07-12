@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Item, PolicyIntelligence, PolicyGovernance } from '../types';
 import { Building2, MapPin, ExternalLink, ArrowLeft, Sparkles, Network } from 'lucide-react';
 import nfprcLogo from '../../assets/NFPRC_logo.png';
-import { fetchItemIntelligence, fetchItemGovernance } from '../api';
+import { fetchItemIntelligence, fetchItemGovernance, triggerIntelligenceGeneration, triggerGovernanceGeneration } from '../api';
 import PendingIntelligence from './intelligence/PendingIntelligence';
 import SourcesConsulted from './intelligence/SourcesConsulted';
 import { FRAMEWORK_PANELS } from './intelligence/registry';
@@ -11,6 +11,7 @@ import { GOVERNANCE_PANELS } from './governance/registry';
 import GovernanceSynthesis from './governance/GovernanceSynthesis';
 import ItemEvolutionPanel from './governance/ItemEvolutionPanel';
 import DownloadPdfButton from './DownloadPdfButton';
+import UpdateRecordButton from './UpdateRecordButton';
 
 interface ItemDetailProps {
   item: Item;
@@ -345,6 +346,21 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, theme, issu
                   <SourcesConsulted sources={intelligence.sources} isDark={isDark} />
                 )}
                 <DownloadPdfButton isDark={isDark} label="Download Policy Intelligence as PDF" />
+                {isAdmin && (
+                  <div className="no-print flex justify-center">
+                    <UpdateRecordButton<PolicyIntelligence>
+                      isDark={isDark}
+                      previousGeneratedAt={intelligence.generated_at}
+                      label="Update Policy Intelligence"
+                      onTrigger={() => triggerIntelligenceGeneration(item.id, true)}
+                      onPoll={async () => {
+                        const status = await fetchItemIntelligence(item.id);
+                        return { data: status.intelligence, generatedAt: status.intelligence?.generated_at ?? null };
+                      }}
+                      onComplete={(data) => setIntelligence(data)}
+                    />
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -390,6 +406,21 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, theme, issu
                   <SourcesConsulted sources={governance.sources} isDark={isDark} />
                 )}
                 <DownloadPdfButton isDark={isDark} label="Download Governance Intelligence as PDF" />
+                {isAdmin && (
+                  <div className="no-print flex justify-center">
+                    <UpdateRecordButton<PolicyGovernance>
+                      isDark={isDark}
+                      previousGeneratedAt={governance.generated_at}
+                      label="Update Governance Intelligence"
+                      onTrigger={() => triggerGovernanceGeneration(item.id, true)}
+                      onPoll={async () => {
+                        const status = await fetchItemGovernance(item.id);
+                        return { data: status.governance, generatedAt: status.governance?.generated_at ?? null };
+                      }}
+                      onComplete={(data) => setGovernance(data)}
+                    />
+                  </div>
+                )}
               </>
             )}
           </div>

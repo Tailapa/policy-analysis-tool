@@ -18,6 +18,7 @@ import {
   PolicyEvolutionChain,
   ItemEvolutionStatus,
   PillarStat,
+  MinistryGenomeIndex,
 } from './types';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -319,6 +320,10 @@ export async function fetchMinistryFingerprint(ministryId: string): Promise<Fing
 
 export async function fetchSectorFingerprint(pillar: string): Promise<Fingerprint> {
   return request<Fingerprint>(`/api/governance/sectors/${encodeURIComponent(pillar)}/fingerprint`);
+}
+
+export async function fetchMinistryGenomeIndex(ministryId: string): Promise<MinistryGenomeIndex> {
+  return request<MinistryGenomeIndex>(`/api/governance/ministries/${ministryId}/genome-index`);
 }
 
 export interface BulkGenerateResult {

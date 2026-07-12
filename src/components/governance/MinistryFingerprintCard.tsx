@@ -54,15 +54,7 @@ export default function MinistryFingerprintCard({ ministryId, isDark }: Ministry
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
         <RadarChart axes={axes} isDark={isDark} />
 
-        <div className="grid grid-cols-3 gap-3">
-          <div className={`p-3 rounded-xl border text-center ${isDark ? 'bg-zinc-950/50 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`}>
-            <span className={`text-lg font-black block ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>
-              {Math.round(fingerprint.avg_wickedness)}
-            </span>
-            <span className={`text-[10px] font-bold uppercase tracking-wide ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
-              Avg Wickedness
-            </span>
-          </div>
+        <div className="grid grid-cols-2 gap-3">
           <div className={`p-3 rounded-xl border text-center ${isDark ? 'bg-zinc-950/50 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`}>
             <span className={`text-lg font-black block ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>
               {Math.round(fingerprint.incremental_pct)}%

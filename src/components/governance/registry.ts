@@ -1,13 +1,10 @@
 import React from 'react';
-import { Waves, GitBranch, Users2, Skull, Dna } from 'lucide-react';
+import { Waves, GitBranch, Users2 } from 'lucide-react';
 import { PolicyGovernance } from '../../types';
 import FrameworkPanel from '../intelligence/FrameworkPanel';
 import StreamsIndicator from './StreamsIndicator';
 import PunctuatedEquilibriumStages from './PunctuatedEquilibriumStages';
 import EntrepreneurTree from './EntrepreneurTree';
-import WickednessRadar from './WickednessRadar';
-import GenomeRadial from './GenomeRadial';
-import AnalyticalBrief from '../AnalyticalBrief';
 
 export interface GovernancePanelEntry {
   key: string;
@@ -82,68 +79,6 @@ export const GOVERNANCE_PANELS: GovernancePanelEntry[] = [
           entrepreneurs: gov.entrepreneurs.entrepreneurs,
           isDark,
         })
-      ),
-  },
-  {
-    key: 'wickedness',
-    render: (gov, isDark) =>
-      React.createElement(
-        FrameworkPanel,
-        {
-          key: 'wickedness',
-          title: 'Wickedness Index',
-          definition:
-            "How structurally complex this policy problem is across seven dimensions — from implementation difficulty to cross-jurisdictional coordination and scientific uncertainty.",
-          confidence: gov.wickedness.confidence,
-          reasoning: gov.wickedness.reasoning,
-          isDark,
-          icon: React.createElement(Skull, { size: 15, className: 'text-purple-500' }),
-        },
-        React.createElement(
-          React.Fragment,
-          null,
-          React.createElement(WickednessRadar, {
-            dimensions: gov.wickedness.dimensions,
-            overallScore: gov.wickedness.overall_score,
-            isDark,
-          }),
-          React.createElement(AnalyticalBrief, {
-            heading: 'Analytical Brief',
-            text: gov.wickedness.brief,
-            isDark,
-          })
-        )
-      ),
-  },
-  {
-    key: 'genome',
-    render: (gov, isDark) =>
-      React.createElement(
-        FrameworkPanel,
-        {
-          key: 'genome',
-          title: 'Governance Genome',
-          definition:
-            "A ten-dimension signature combining this policy's readings across every other framework — computed directly from those scores, not separately generated.",
-          confidence: gov.genome.confidence,
-          reasoning: gov.genome.reasoning,
-          isDark,
-          icon: React.createElement(Dna, { size: 15, className: 'text-emerald-500' }),
-        },
-        React.createElement(
-          React.Fragment,
-          null,
-          React.createElement(GenomeRadial, {
-            vector: gov.genome.vector,
-            dimensions: gov.genome.dimensions,
-            isDark,
-          }),
-          React.createElement(AnalyticalBrief, {
-            heading: 'Analytical Brief',
-            text: gov.genome.brief,
-            isDark,
-          })
-        )
       ),
   },
 ];

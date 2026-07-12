@@ -101,6 +101,23 @@ class GovernanceGenomeOut(BaseModel):
     confidence: ConfidenceLevel
 
 
+class GGIOut(BaseModel):
+    """Governance Genome Index — see methodology_documentation.md.
+    Computed fresh at read-time by app.services.genome_index.compute_ggi,
+    never stored, so it's absent (None) rather than validation-erroring for
+    any governance record where this can't be computed."""
+
+    lti: float
+    cei: float
+    plmi: float
+    lii: float
+    kmsi: float
+    pei: float
+    ggi_score: float
+    window_open: bool
+    confidence: ConfidenceLevel
+
+
 class PolicyGovernanceOut(BaseModel):
     generated_at: str
     model: str
@@ -109,6 +126,7 @@ class PolicyGovernanceOut(BaseModel):
     punctuated_equilibrium: PunctuatedEquilibriumResult
     wickedness: WickednessOut
     genome: GovernanceGenomeOut
+    ggi: Optional[GGIOut] = None
     research_brief: str = ""
     synthesis_conclusion: str = ""
     sources: list[SourceCitationOut] = Field(default_factory=list)
@@ -143,6 +161,37 @@ class FingerprintOut(BaseModel):
     incremental_pct: float
     transformational_pct: float
     stakeholder_diversity: int
+    sample_size: int
+
+
+class StreamsAvgOut(BaseModel):
+    avg_problem: float
+    avg_policy: float
+    avg_politics: float
+    window_open_pct: float
+
+
+class PEStageCountOut(BaseModel):
+    stage: str
+    count: int
+
+
+class MinistryGenomeIndexOut(BaseModel):
+    """Ministry-wide average of the Governance Genome Index and its six
+    sub-indices, plus the two framework averages (Kingdon's Streams,
+    Punctuated Equilibrium) that don't already have a ministry-scoped
+    aggregate elsewhere. See methodology_documentation.md."""
+
+    label: str
+    avg_lti: float
+    avg_cei: float
+    avg_plmi: float
+    avg_lii: float
+    avg_kmsi: float
+    avg_pei: float
+    avg_ggi_score: float
+    streams_avg: StreamsAvgOut
+    pe_distribution: list[PEStageCountOut]
     sample_size: int
 
 

@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Ministry, MinistryCategory, Item, Pillar, Status, Impact, Issue } from '../types';
 import { ALL_ISSUES_ID, getDefaultPillarMeta } from '../constants';
 import MinistryFingerprintCard from './governance/MinistryFingerprintCard';
+import MinistryGovernanceProfile from './governance/MinistryGovernanceProfile';
 import MinistryBulkGenerateButton from './governance/MinistryBulkGenerateButton';
 import {
   Building2,
@@ -423,6 +424,10 @@ export default function Ministries({
 
           {activeMinistryData?.id && (
             <MinistryFingerprintCard ministryId={activeMinistryData.id} isDark={isDark} />
+          )}
+
+          {activeMinistryData?.id && (
+            <MinistryGovernanceProfile ministryId={activeMinistryData.id} isDark={isDark} />
           )}
 
           {/* Inline Filter Bar */}

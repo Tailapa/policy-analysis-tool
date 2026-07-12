@@ -66,20 +66,10 @@ export default function Overview({
   // Dynamic stats calculated from active items
   const stats = useMemo(() => {
     const total = activeItems.length || 1;
-    const initiated = activeItems.filter(i => i.status === 'Initiated').length;
-    const completed = activeItems.filter(i => i.status === 'Completed').length;
-    const announced = activeItems.filter(i => i.status === 'Announced').length;
     const highImpact = activeItems.filter(i => i.impact === 'High').length;
     const ministriesCount = new Set(activeItems.map(i => i.ministry)).size;
 
-    return {
-      total,
-      initiated: Math.round((initiated / total) * 100),
-      completed: Math.round((completed / total) * 100),
-      announced: Math.round((announced / total) * 100),
-      highImpact,
-      ministriesCount
-    };
+    return { total, highImpact, ministriesCount };
   }, [activeItems]);
 
   // Ministries appearing in this issue's items, with issue-scoped counts
@@ -375,53 +365,6 @@ export default function Overview({
           <div className="text-center pl-6">
             <span className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider">Total Actions</span>
             <span className={`text-3xl font-extrabold font-display ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>{stats.total}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Status Breakdown Row */}
-      <div className={`p-6 rounded-[1.75rem] border shadow-xl transition-all ${
-        isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
-      }`}>
-        <h3 className={`text-xs font-bold uppercase tracking-widest mb-4 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
-          Status Distribution
-        </h3>
-        <div className="flex flex-col sm:flex-row gap-3 w-full">
-          {/* Initiated */}
-          <div 
-            style={{ flexGrow: stats.initiated || 1 }}
-            className={`min-w-[100px] border rounded-2xl p-4 text-center flex flex-col justify-center transition-all ${
-              isDark 
-                ? 'bg-indigo-500/5 border-indigo-500/15' 
-                : 'bg-indigo-50/50 border-indigo-200/60'
-            }`}
-          >
-            <span className={`text-xs font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>Initiated</span>
-            <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-0.5">{stats.initiated}%</span>
-          </div>
-          {/* Completed */}
-          <div 
-            style={{ flexGrow: stats.completed || 1 }}
-            className={`min-w-[80px] border rounded-2xl p-4 text-center flex flex-col justify-center transition-all ${
-              isDark 
-                ? 'bg-emerald-500/5 border-emerald-500/15' 
-                : 'bg-emerald-50/50 border-emerald-200/60'
-            }`}
-          >
-            <span className={`text-xs font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>Completed</span>
-            <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{stats.completed}%</span>
-          </div>
-          {/* Announced */}
-          <div 
-            style={{ flexGrow: stats.announced || 1 }}
-            className={`min-w-[80px] border rounded-2xl p-4 text-center flex flex-col justify-center transition-all ${
-              isDark 
-                ? 'bg-purple-500/5 border-purple-500/15' 
-                : 'bg-purple-50/50 border-purple-200/60'
-            }`}
-          >
-            <span className={`text-xs font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>Announced</span>
-            <span className="text-2xl font-black text-purple-600 dark:text-purple-400 mt-0.5">{stats.announced}%</span>
           </div>
         </div>
       </div>

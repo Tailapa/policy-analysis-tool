@@ -334,6 +334,18 @@ export interface GovernanceGenome {
   confidence: ConfidenceLevel;
 }
 
+export interface GGI {
+  lti: number;
+  cei: number;
+  plmi: number;
+  lii: number;
+  kmsi: number;
+  pei: number;
+  ggi_score: number;
+  window_open: boolean;
+  confidence: ConfidenceLevel;
+}
+
 export interface PolicyGovernance {
   generated_at: string;
   model: string;
@@ -342,6 +354,7 @@ export interface PolicyGovernance {
   punctuated_equilibrium: PunctuatedEquilibriumResult;
   wickedness: WickednessResult;
   genome: GovernanceGenome;
+  ggi: GGI | null;
   research_brief: string;
   synthesis_conclusion: string;
   sources: SourceCitation[];
@@ -376,6 +389,32 @@ export interface Fingerprint {
   incremental_pct: number;
   transformational_pct: number;
   stakeholder_diversity: number;
+  sample_size: number;
+}
+
+export interface StreamsAvg {
+  avg_problem: number;
+  avg_policy: number;
+  avg_politics: number;
+  window_open_pct: number;
+}
+
+export interface PEStageCount {
+  stage: string;
+  count: number;
+}
+
+export interface MinistryGenomeIndex {
+  label: string;
+  avg_lti: number;
+  avg_cei: number;
+  avg_plmi: number;
+  avg_lii: number;
+  avg_kmsi: number;
+  avg_pei: number;
+  avg_ggi_score: number;
+  streams_avg: StreamsAvg;
+  pe_distribution: PEStageCount[];
   sample_size: number;
 }
 

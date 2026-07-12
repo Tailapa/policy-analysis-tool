@@ -12,9 +12,13 @@ from app.schemas.governance import (
     FingerprintOut,
     GovernanceStatusOut,
     InstrumentMixOut,
+    MinistryGenomeIndexOut,
+    PEStageCountOut,
     PolicyGovernanceOut,
+    StreamsAvgOut,
     TypologyMixOut,
 )
+from app.services.genome_index import PE_STAGE_SCORE, compute_ggi
 from app.services.policy_governance import GENOME_DIMENSIONS, backfill_missing_governance, generate_governance_for_item
 
 item_governance_router = APIRouter(prefix="/api/items", tags=["governance"])
@@ -22,9 +26,10 @@ governance_aggregate_router = APIRouter(prefix="/api/governance", tags=["governa
 admin_governance_router = APIRouter(prefix="/api/admin", tags=["admin", "governance"])
 
 
-def _governance_out(governance: dict) -> PolicyGovernanceOut:
+def _governance_out(governance: dict, intelligence: dict | None = None) -> PolicyGovernanceOut:
     out = dict(governance)
     out["generated_at"] = out["generated_at"].isoformat()
+    out["ggi"] = compute_ggi(intelligence, governance)
     return PolicyGovernanceOut.model_validate(out)
 
 
@@ -37,7 +42,7 @@ def _intelligence_out(intelligence: dict) -> PolicyIntelligenceOut:
 @item_governance_router.get("/{item_id}/governance", response_model=GovernanceStatusOut)
 async def get_item_governance(item_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
     oid = parse_object_id(item_id, "Item not found")
-    doc = await db[COLLECTIONS["policy_items"]].find_one({"_id": oid}, {"governance": 1})
+    doc = await db[COLLECTIONS["policy_items"]].find_one({"_id": oid}, {"governance": 1, "intelligence": 1})
     if not doc:
         raise HTTPException(status_code=404, detail="Item not found")
 
@@ -45,7 +50,7 @@ async def get_item_governance(item_id: str, db: AsyncIOMotorDatabase = Depends(g
     if governance is None:
         return GovernanceStatusOut(status="pending", governance=None)
 
-    return GovernanceStatusOut(status="ready", governance=_governance_out(governance))
+    return GovernanceStatusOut(status="ready", governance=_governance_out(governance, doc.get("intelligence")))
 
 
 async def _compute_fingerprint(
@@ -150,6 +155,91 @@ async def sector_fingerprint(pillar: str, db: AsyncIOMotorDatabase = Depends(get
     return await _compute_fingerprint(db, match, pillar)
 
 
+async def _compute_ministry_genome_index(
+    db: AsyncIOMotorDatabase, match: dict, label: str
+) -> MinistryGenomeIndexOut:
+    """Per-item GGI is a pure Python function over already-fetched
+    intelligence/governance subdocuments (see services/genome_index.py) —
+    ministry item counts are small (tens, not millions), so a Python-side
+    reduction here is simpler and safer than expressing the same math as a
+    Mongo aggregation pipeline."""
+    pe_stages = list(PE_STAGE_SCORE.keys())
+    cursor = db[COLLECTIONS["policy_items"]].find(match, {"intelligence": 1, "governance": 1})
+
+    sample_size = 0
+    sums = {"lti": 0.0, "cei": 0.0, "plmi": 0.0, "lii": 0.0, "kmsi": 0.0, "pei": 0.0, "ggi_score": 0.0}
+    streams_sums = {"problem": 0.0, "policy": 0.0, "politics": 0.0}
+    window_open_count = 0
+    pe_counts = {stage: 0 for stage in pe_stages}
+
+    async for doc in cursor:
+        governance = doc.get("governance")
+        if governance is None:
+            continue
+        sample_size += 1
+        ggi = compute_ggi(doc.get("intelligence"), governance)
+        for key in sums:
+            sums[key] += ggi[key]
+        if ggi["window_open"]:
+            window_open_count += 1
+
+        streams = governance.get("streams", {})
+        streams_sums["problem"] += streams.get("problem_score", 0.0)
+        streams_sums["policy"] += streams.get("policy_score", 0.0)
+        streams_sums["politics"] += streams.get("politics_score", 0.0)
+
+        pe_stage = governance.get("punctuated_equilibrium", {}).get("stage")
+        if pe_stage in pe_counts:
+            pe_counts[pe_stage] += 1
+
+    if sample_size == 0:
+        return MinistryGenomeIndexOut(
+            label=label,
+            avg_lti=0.0,
+            avg_cei=0.0,
+            avg_plmi=0.0,
+            avg_lii=0.0,
+            avg_kmsi=0.0,
+            avg_pei=0.0,
+            avg_ggi_score=0.0,
+            streams_avg=StreamsAvgOut(avg_problem=0.0, avg_policy=0.0, avg_politics=0.0, window_open_pct=0.0),
+            pe_distribution=[PEStageCountOut(stage=stage, count=0) for stage in pe_stages],
+            sample_size=0,
+        )
+
+    return MinistryGenomeIndexOut(
+        label=label,
+        avg_lti=round(sums["lti"] / sample_size, 1),
+        avg_cei=round(sums["cei"] / sample_size, 1),
+        avg_plmi=round(sums["plmi"] / sample_size, 1),
+        avg_lii=round(sums["lii"] / sample_size, 1),
+        avg_kmsi=round(sums["kmsi"] / sample_size, 1),
+        avg_pei=round(sums["pei"] / sample_size, 1),
+        avg_ggi_score=round(sums["ggi_score"] / sample_size, 1),
+        streams_avg=StreamsAvgOut(
+            avg_problem=round(streams_sums["problem"] / sample_size, 2),
+            avg_policy=round(streams_sums["policy"] / sample_size, 2),
+            avg_politics=round(streams_sums["politics"] / sample_size, 2),
+            window_open_pct=round(window_open_count / sample_size * 100, 1),
+        ),
+        pe_distribution=[PEStageCountOut(stage=stage, count=pe_counts[stage]) for stage in pe_stages],
+        sample_size=sample_size,
+    )
+
+
+@governance_aggregate_router.get(
+    "/ministries/{ministry_id}/genome-index", response_model=MinistryGenomeIndexOut
+)
+async def ministry_genome_index(ministry_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+    oid = parse_object_id(ministry_id, "Ministry not found")
+    ministry_doc = await db[COLLECTIONS["ministries"]].find_one({"_id": oid})
+    if not ministry_doc:
+        raise HTTPException(status_code=404, detail="Ministry not found")
+
+    match = {"ministry_id": oid, "governance": {"$ne": None}}
+    return await _compute_ministry_genome_index(db, match, ministry_doc["name"])
+
+
 @governance_aggregate_router.get("/compare", response_model=CompareGovernanceOut)
 async def compare_governance(
     type: CompareType = Query(...),
@@ -167,7 +257,7 @@ async def compare_governance(
                 id=raw_id,
                 label=doc["title"],
                 intelligence=_intelligence_out(doc["intelligence"]) if doc.get("intelligence") else None,
-                governance=_governance_out(doc["governance"]) if doc.get("governance") else None,
+                governance=_governance_out(doc["governance"], doc.get("intelligence")) if doc.get("governance") else None,
             )
         if type == "ministry":
             oid = parse_object_id(raw_id, "Ministry not found")
