@@ -20,21 +20,26 @@ const DIMENSIONS: { key: keyof Omit<EngagementAvgBarsProps, 'isDark'>; label: st
 export default function EngagementAvgBars(props: EngagementAvgBarsProps) {
   const { isDark } = props;
   return (
-    <div className="space-y-3 w-full">
+    <div className="flex items-end justify-between gap-2 w-full">
       {DIMENSIONS.map((dim) => {
         const value = props[dim.key];
+        const percent = Math.round(value * 100);
         return (
-          <div key={dim.key}>
-            <div className="flex items-center justify-between mb-1">
-              <span className={`text-xs font-bold ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>{dim.label}</span>
-              <span className={`text-xs font-bold ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>{Math.round(value * 100)}%</span>
-            </div>
-            <div className={`h-2.5 w-full rounded-full overflow-hidden ${isDark ? 'bg-zinc-800' : 'bg-zinc-100'}`}>
+          <div key={dim.key} className="flex flex-col items-center flex-1 min-w-0">
+            <span className={`text-xs font-bold mb-1.5 ${isDark ? 'text-zinc-300' : 'text-zinc-700'}`}>{percent}%</span>
+            <div
+              className={`w-full max-w-[32px] h-36 rounded-t-lg overflow-hidden flex flex-col justify-end ${
+                isDark ? 'bg-zinc-800' : 'bg-zinc-100'
+              }`}
+            >
               <div
-                className="h-full rounded-full transition-all"
-                style={{ width: `${Math.round(value * 100)}%`, backgroundColor: dim.color }}
+                className="w-full rounded-t-lg transition-all"
+                style={{ height: `${percent}%`, backgroundColor: dim.color }}
               />
             </div>
+            <span className={`text-[10px] font-semibold mt-2 text-center leading-tight ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+              {dim.label}
+            </span>
           </div>
         );
       })}

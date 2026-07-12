@@ -22,15 +22,16 @@ function dominantLowiType(lowi: LowiAggregate): LowiType {
   return entries[0][0];
 }
 
-function Card({ isDark, icon, title, sampleSize, children }: {
+function Card({ isDark, icon, title, sampleSize, wide, children }: {
   isDark: boolean;
   icon: React.ReactNode;
   title: string;
   sampleSize?: number;
+  wide?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <div className={`p-6 rounded-[1.75rem] border shadow-xl transition-all ${
+    <div className={`p-6 rounded-[1.75rem] border shadow-xl transition-all ${wide ? 'lg:col-span-2' : ''} ${
       isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
     }`}>
       <h3 className={`text-sm font-bold tracking-tight mb-4 flex items-center gap-2 font-display ${
@@ -110,15 +111,15 @@ export default function MinistryGovernanceProfile({ ministryId, isDark }: Minist
           </Card>
         )}
 
-        {lifecycle && lifecycle.sample_size > 0 && (
-          <Card isDark={isDark} icon={<Milestone size={15} className="text-emerald-500" />} title="Policy Lifecycle Stage (Distribution)" sampleSize={lifecycle.sample_size}>
-            <LifecycleDistributionBar distribution={lifecycle.distribution} isDark={isDark} />
-          </Card>
-        )}
-
         {genomeIndex && genomeIndex.sample_size > 0 && (
           <Card isDark={isDark} icon={<GitBranch size={15} className="text-amber-500" />} title="Punctuated Equilibrium (Distribution)" sampleSize={genomeIndex.sample_size}>
             <LifecycleDistributionBar distribution={genomeIndex.pe_distribution} isDark={isDark} />
+          </Card>
+        )}
+
+        {lifecycle && lifecycle.sample_size > 0 && (
+          <Card isDark={isDark} icon={<Milestone size={15} className="text-emerald-500" />} title="Policy Lifecycle Stage (Distribution)" sampleSize={lifecycle.sample_size} wide>
+            <LifecycleDistributionBar distribution={lifecycle.distribution} isDark={isDark} />
           </Card>
         )}
       </div>
