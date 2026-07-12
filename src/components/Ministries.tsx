@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Ministry, Item, Pillar, Status, Impact, Issue } from '../types';
-import { ALL_ISSUES_ID } from '../constants';
+import { Ministry, MinistryCategory, Item, Pillar, Status, Impact, Issue } from '../types';
+import { ALL_ISSUES_ID, getDefaultPillarMeta } from '../constants';
 import MinistryFingerprintCard from './governance/MinistryFingerprintCard';
 import MinistryBulkGenerateButton from './governance/MinistryBulkGenerateButton';
 import {
@@ -60,6 +60,7 @@ interface MinistriesProps {
   setCurrentIssueId: (id: string) => void;
   issues: Issue[];
   ministries: Ministry[];
+  pillars: string[];
   isAdmin?: boolean;
 }
 
@@ -73,12 +74,14 @@ export default function Ministries({
   setCurrentIssueId,
   issues,
   ministries,
+  pillars,
   isAdmin
 }: MinistriesProps) {
   const isDark = theme === 'dark';
   const activeItems = items || [];
   const [searchQuery, setSearchQuery] = useState('');
-  
+  const [selectedCategory, setSelectedCategory] = useState<MinistryCategory | undefined>(undefined);
+
   // Scoped filters inside ministry detail
   const [selectedTheme, setSelectedTheme] = useState<Pillar | undefined>(undefined);
   const [selectedStatus, setSelectedStatus] = useState<Status | undefined>(undefined);
@@ -95,8 +98,12 @@ export default function Ministries({
   const activeIssueData = issues.find(issue => issue.id === currentIssueId);
   const issueBadgeLabel = isAggregate ? 'All Issues' : activeIssueData?.label;
 
-  // Pillar Meta for category-specific tags matching the light/dark themes
-  const pillarMeta: Record<Pillar, { color: string; text: string; bg: string }> = {
+  const defaultPillarMeta = getDefaultPillarMeta(isDark);
+
+  // Pillar Meta for category-specific tags matching the light/dark themes —
+  // static colors for the original 6 themes; admin-created themes fall back
+  // to defaultPillarMeta via `pillarMeta[x] ?? defaultPillarMeta`.
+  const pillarMeta: Record<string, { color: string; text: string; bg: string }> = {
     'Economic Growth': { 
       color: isDark ? '#6366F1' : '#185FA5', 
       text: isDark ? '#C7D2FE' : '#0C447C', 
@@ -150,13 +157,16 @@ export default function Ministries({
 
     // Sort descending by item count
     const sorted = ministriesWithCounts.sort((a, b) => b.itemCount - a.itemCount);
-    if (!searchQuery.trim()) return sorted;
-    
-    return sorted.filter(m => 
+    const categoryFiltered = selectedCategory
+      ? sorted.filter(m => (m.category || 'ministry') === selectedCategory)
+      : sorted;
+    if (!searchQuery.trim()) return categoryFiltered;
+
+    return categoryFiltered.filter(m =>
       m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (m.minister && m.minister.toLowerCase().includes(searchQuery.toLowerCase()))
     );
-  }, [searchQuery, activeItems, ministries]);
+  }, [searchQuery, activeItems, ministries, selectedCategory]);
 
   // 2. Filtered list of items inside selected ministry
   const scopedItems = useMemo(() => {
@@ -285,6 +295,32 @@ export default function Ministries({
                 </button>
               )}
             </div>
+          </div>
+
+          {/* Category Filter Tabs */}
+          <div className="flex items-center gap-2">
+            {([
+              { value: undefined, label: 'All' },
+              { value: 'ministry' as MinistryCategory, label: 'Ministries' },
+              { value: 'regulatory_body' as MinistryCategory, label: 'Regulatory Bodies' },
+            ]).map((opt) => {
+              const isActive = selectedCategory === opt.value;
+              return (
+                <button
+                  key={opt.label}
+                  onClick={() => setSelectedCategory(opt.value)}
+                  className={`px-4 py-1.5 rounded-full border text-xs font-bold cursor-pointer transition-all ${
+                    isActive
+                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/10'
+                      : isDark
+                        ? 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-750'
+                        : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 shadow-sm'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
 
           {/* Ministries Grid */}
@@ -427,7 +463,7 @@ export default function Ministries({
                     >
                       Clear Theme Filter
                     </button>
-                    {(Object.keys(pillarMeta) as Pillar[]).map((theme) => (
+                    {pillars.map((theme) => (
                       <button
                         key={theme}
                         onClick={() => {
@@ -438,7 +474,10 @@ export default function Ministries({
                           isDark ? 'hover:bg-zinc-800' : 'hover:bg-zinc-50'
                         }`}
                       >
-                        <span className="w-2 h-2 rounded-full block" style={{ backgroundColor: pillarMeta[theme].color }}></span>
+                        <span
+                          className="w-2 h-2 rounded-full block"
+                          style={{ backgroundColor: (pillarMeta[theme] ?? defaultPillarMeta).color }}
+                        ></span>
                         <span>{theme}</span>
                       </button>
                     ))}
@@ -601,7 +640,7 @@ export default function Ministries({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {scopedItems.map((item) => {
-                const meta = pillarMeta[item.theme];
+                const meta = pillarMeta[item.theme] ?? defaultPillarMeta;
                 const isState = item.geography.startsWith('state:');
                 const stateName = isState ? item.geography.replace('state:', '').trim() : '';
 

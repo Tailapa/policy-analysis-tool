@@ -14,12 +14,25 @@ ISSUE_I_PDF = FIXTURES_DIR / "sample_issue_1_may_1_15_2026.pdf"
 ISSUE_II_PDF = FIXTURES_DIR / "sample_issue_2_may_16_31_2026.pdf"
 
 
+DEFAULT_TEST_PILLARS = [
+    "Economic Growth",
+    "Infrastructure",
+    "Human Development",
+    "National Security",
+    "Rural & Agri",
+    "Misc",
+]
+
+
 @pytest.fixture
 async def test_db():
     client = AsyncMongoMockClient()
     db = client["governance_watch_test"]
     await db["ministries"].create_index("name", unique=True)
     await db["admin_users"].create_index("email", unique=True)
+    await db["pillars"].create_index("name", unique=True)
+    now = datetime.now(timezone.utc)
+    await db["pillars"].insert_many([{"name": name, "created_at": now} for name in DEFAULT_TEST_PILLARS])
     return db
 
 

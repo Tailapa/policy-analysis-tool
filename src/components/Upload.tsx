@@ -14,19 +14,38 @@ import {
   ChevronDown,
   Building2,
   Trash2,
-  Loader2
+  Loader2,
+  ListChecks,
+  Tag
 } from 'lucide-react';
 import { INDIA_STATE_PATHS } from './IndiaMapPaths';
+import ManageItems from './admin/ManageItems';
+import ManageMinistries from './admin/ManageMinistries';
+import ManageThemes from './admin/ManageThemes';
 
 interface UploadProps {
   onUploadSuccess: (issueId?: string) => void;
   onBackToDashboard: () => void;
   theme: 'light' | 'dark';
   ministries: Ministry[];
+  pillars: string[];
+  onMinistriesChanged: () => void;
+  onPillarsChanged: () => void;
 }
 
-export default function Upload({ onUploadSuccess, onBackToDashboard, theme, ministries }: UploadProps) {
+type AdminTab = 'upload' | 'items' | 'ministries' | 'themes';
+
+export default function Upload({
+  onUploadSuccess,
+  onBackToDashboard,
+  theme,
+  ministries,
+  pillars,
+  onMinistriesChanged,
+  onPillarsChanged,
+}: UploadProps) {
   const isDark = theme === 'dark';
+  const [activeAdminTab, setActiveAdminTab] = useState<AdminTab>('upload');
 
   // Form states
   const [title, setTitle] = useState('');
@@ -34,7 +53,9 @@ export default function Upload({ onUploadSuccess, onBackToDashboard, theme, mini
   const [selectedMinistry, setSelectedMinistry] = useState('');
   const [customMinistry, setCustomMinistry] = useState('');
   const [isCustomMinistry, setIsCustomMinistry] = useState(false);
-  const [themePillar, setThemePillar] = useState<Pillar>('Economic Growth');
+  const [themePillar, setThemePillar] = useState<Pillar>('');
+  const [customTheme, setCustomTheme] = useState('');
+  const [isCustomTheme, setIsCustomTheme] = useState(false);
   const [status, setStatus] = useState<Status>('Initiated');
   const [impact, setImpact] = useState<Impact>('Medium');
   const [date, setDate] = useState('24 Jun');
@@ -61,12 +82,19 @@ export default function Upload({ onUploadSuccess, onBackToDashboard, theme, mini
   const [publishedCount, setPublishedCount] = useState(1);
 
   const effectiveMinistry = isCustomMinistry ? customMinistry : (selectedMinistry || ministries[0]?.name || '');
+  const effectiveTheme = isCustomTheme ? customTheme : themePillar;
 
   useEffect(() => {
     if (!selectedMinistry && ministries.length > 0) {
       setSelectedMinistry(ministries[0].name);
     }
   }, [ministries, selectedMinistry]);
+
+  useEffect(() => {
+    if (!themePillar && pillars.length > 0) {
+      setThemePillar(pillars[0]);
+    }
+  }, [pillars, themePillar]);
 
   // Drag and Drop handlers
   const handleDrag = (e: React.DragEvent) => {
@@ -143,7 +171,7 @@ export default function Upload({ onUploadSuccess, onBackToDashboard, theme, mini
         title: title.trim(),
         description: description.trim(),
         ministry: effectiveMinistry,
-        theme: themePillar,
+        theme: effectiveTheme,
         status,
         impact,
         date,
@@ -169,7 +197,9 @@ export default function Upload({ onUploadSuccess, onBackToDashboard, theme, mini
     setDescription('');
     setCustomMinistry('');
     setIsCustomMinistry(false);
-    setThemePillar('Economic Growth');
+    setThemePillar(pillars[0] || '');
+    setCustomTheme('');
+    setIsCustomTheme(false);
     setStatus('Initiated');
     setImpact('Medium');
     setUploadedFile(null);
@@ -274,10 +304,17 @@ export default function Upload({ onUploadSuccess, onBackToDashboard, theme, mini
     );
   }
 
+  const adminTabs: { id: AdminTab; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
+    { id: 'upload', label: 'Upload New', icon: UploadIcon },
+    { id: 'items', label: 'Manage Items', icon: ListChecks },
+    { id: 'ministries', label: 'Manage Ministries', icon: Building2 },
+    { id: 'themes', label: 'Manage Themes', icon: Tag },
+  ];
+
   return (
-    <div className="max-w-4xl mx-auto py-6 px-4">
+    <div className={`${activeAdminTab === 'upload' ? 'max-w-4xl' : 'max-w-5xl'} mx-auto py-6 px-4`}>
       {/* Header back navigation */}
-      <div className="flex items-center justify-between gap-4 mb-8">
+      <div className="flex items-center justify-between gap-4 mb-6">
         <button
           onClick={onBackToDashboard}
           className={`flex items-center gap-2 text-xs font-bold px-4 py-2 rounded-full border transition-all cursor-pointer ${
@@ -298,6 +335,43 @@ export default function Upload({ onUploadSuccess, onBackToDashboard, theme, mini
         </div>
       </div>
 
+      {/* Admin sub-tab strip */}
+      <div className={`inline-flex gap-1.5 p-1 rounded-full shadow-inner border mb-8 transition-all ${
+        isDark ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'
+      }`}>
+        {adminTabs.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setActiveAdminTab(id)}
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeAdminTab === id
+                ? isDark
+                  ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/50'
+                  : 'bg-white text-zinc-900 shadow-sm border border-zinc-200'
+                : isDark
+                  ? 'text-zinc-400 hover:text-zinc-200'
+                  : 'text-zinc-600 hover:text-zinc-900'
+            }`}
+          >
+            <Icon size={12} />
+            <span>{label}</span>
+          </button>
+        ))}
+      </div>
+
+      {activeAdminTab === 'items' && (
+        <ManageItems isDark={isDark} onItemsChanged={onMinistriesChanged} />
+      )}
+
+      {activeAdminTab === 'ministries' && (
+        <ManageMinistries isDark={isDark} onMinistriesChanged={onMinistriesChanged} />
+      )}
+
+      {activeAdminTab === 'themes' && (
+        <ManageThemes isDark={isDark} onPillarsChanged={onPillarsChanged} />
+      )}
+
+      {activeAdminTab === 'upload' && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Form panel */}
         <div className={`lg:col-span-2 rounded-3xl border p-6 md:p-8 shadow-xl ${
@@ -366,9 +440,16 @@ export default function Upload({ onUploadSuccess, onBackToDashboard, theme, mini
                           : 'bg-zinc-50 border-zinc-200 text-zinc-900 focus:bg-white shadow-inner'
                       }`}
                     >
-                      {ministries.map(m => (
-                        <option key={m.name} value={m.name}>{m.name}</option>
-                      ))}
+                      <optgroup label="Ministries">
+                        {ministries.filter(m => (m.category || 'ministry') === 'ministry').map(m => (
+                          <option key={m.name} value={m.name}>{m.name}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Regulatory Bodies">
+                        {ministries.filter(m => m.category === 'regulatory_body').map(m => (
+                          <option key={m.name} value={m.name}>{m.name}</option>
+                        ))}
+                      </optgroup>
                     </select>
                   ) : (
                     <input
@@ -399,22 +480,41 @@ export default function Upload({ onUploadSuccess, onBackToDashboard, theme, mini
                 <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
                   Theme Pillar Category *
                 </label>
-                <select
-                  value={themePillar}
-                  onChange={(e) => setThemePillar(e.target.value as Pillar)}
-                  className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all ${
-                    isDark
-                      ? 'bg-zinc-950 border-zinc-800 text-zinc-100 focus:bg-zinc-900'
-                      : 'bg-zinc-50 border-zinc-200 text-zinc-900 focus:bg-white shadow-inner'
-                  }`}
+                {!isCustomTheme ? (
+                  <select
+                    value={themePillar}
+                    onChange={(e) => setThemePillar(e.target.value as Pillar)}
+                    className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all ${
+                      isDark
+                        ? 'bg-zinc-950 border-zinc-800 text-zinc-100 focus:bg-zinc-900'
+                        : 'bg-zinc-50 border-zinc-200 text-zinc-900 focus:bg-white shadow-inner'
+                    }`}
+                  >
+                    {pillars.map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    required={!uploadedFile}
+                    value={customTheme}
+                    onChange={(e) => setCustomTheme(e.target.value)}
+                    placeholder="e.g. Digital Governance"
+                    className={`w-full px-4 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all ${
+                      isDark
+                        ? 'bg-zinc-950 border-zinc-800 text-zinc-100 focus:bg-zinc-900'
+                        : 'bg-zinc-50 border-zinc-200 text-zinc-900 focus:bg-white shadow-inner'
+                    }`}
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsCustomTheme(!isCustomTheme)}
+                  className="mt-1.5 text-[10px] font-bold text-indigo-500 hover:underline cursor-pointer"
                 >
-                  <option value="Economic Growth">Economic Growth</option>
-                  <option value="Infrastructure">Infrastructure</option>
-                  <option value="Human Development">Human Development</option>
-                  <option value="National Security">National Security</option>
-                  <option value="Rural & Agri">Rural & Agri</option>
-                  <option value="Misc">Misc</option>
-                </select>
+                  {isCustomTheme ? '← Select Standard Theme' : '＋ Input custom Theme'}
+                </button>
               </div>
             </div>
 
@@ -747,6 +847,7 @@ export default function Upload({ onUploadSuccess, onBackToDashboard, theme, mini
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

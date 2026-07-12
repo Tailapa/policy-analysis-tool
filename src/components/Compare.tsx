@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Item, Ministry, Pillar, CompareType, CompareGovernanceResult } from '../types';
+import { Item, Ministry, CompareType, CompareGovernanceResult } from '../types';
 import { fetchGovernanceCompare } from '../api';
 import { GitCompare, Loader2 } from 'lucide-react';
 import CompareView from './governance/CompareView';
@@ -8,11 +8,10 @@ interface CompareProps {
   theme: 'light' | 'dark';
   items: Item[];
   ministries: Ministry[];
+  pillars: string[];
 }
 
-const ALL_PILLARS: Pillar[] = ['Economic Growth', 'Infrastructure', 'Human Development', 'National Security', 'Rural & Agri', 'Misc'];
-
-export default function Compare({ theme, items, ministries }: CompareProps) {
+export default function Compare({ theme, items, ministries, pillars }: CompareProps) {
   const isDark = theme === 'dark';
   const [type, setType] = useState<CompareType>('policy');
   const [idA, setIdA] = useState('');
@@ -24,8 +23,8 @@ export default function Compare({ theme, items, ministries }: CompareProps) {
   const options = useMemo(() => {
     if (type === 'policy') return items.map((it) => ({ id: it.id, label: it.title }));
     if (type === 'ministry') return ministries.map((m) => ({ id: m.id, label: m.name }));
-    return ALL_PILLARS.map((p) => ({ id: p, label: p }));
-  }, [type, items, ministries]);
+    return pillars.map((p) => ({ id: p, label: p }));
+  }, [type, items, ministries, pillars]);
 
   const handleTypeChange = (next: CompareType) => {
     setType(next);

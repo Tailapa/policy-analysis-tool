@@ -2,7 +2,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from app.schemas.item import Impact, ItemOut, Pillar, SourceOut, Status
+from app.schemas.item import Impact, ItemOut, SourceOut, Status
 
 
 class IssueUploadResponse(BaseModel):
@@ -25,7 +25,7 @@ class ManualItemCreate(BaseModel):
     title: str
     description: str
     ministry: str
-    theme: Pillar
+    theme: str
     status: Status
     impact: Impact
     date: str

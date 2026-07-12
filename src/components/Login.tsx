@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, ShieldAlert, KeyRound, User, ArrowLeft, Info } from 'lucide-react';
+import { Lock, ShieldAlert, KeyRound, User, ArrowLeft } from 'lucide-react';
 import { login } from '../api';
 
 interface LoginProps {
@@ -25,7 +25,7 @@ export default function Login({ onLoginSuccess, onBackToDashboard, theme }: Logi
       await login(username.trim(), password);
       onLoginSuccess();
     } catch {
-      setError('Invalid admin credentials. Please use admin/admin.');
+      setError('Invalid admin credentials.');
     } finally {
       setIsLoading(false);
     }
@@ -63,17 +63,6 @@ export default function Login({ onLoginSuccess, onBackToDashboard, theme }: Logi
           <p className="text-xs text-zinc-500 font-medium mt-1">
             Access secure administrative tools to publish reports
           </p>
-        </div>
-
-        {/* Credentials guide info box */}
-        <div className={`mb-6 p-3.5 rounded-2xl border text-[11px] font-medium flex gap-2.5 items-start ${
-          isDark ? 'bg-zinc-950/65 border-zinc-800 text-zinc-400' : 'bg-zinc-50 border-zinc-200 text-zinc-600'
-        }`}>
-          <Info size={14} className="text-indigo-500 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-bold text-indigo-600 dark:text-indigo-400">Prototype credentials:</span>
-            <p className="mt-0.5">Username: <code className="font-mono bg-zinc-200/50 dark:bg-zinc-800/80 px-1 py-0.5 rounded">admin</code> &bull; Password: <code className="font-mono bg-zinc-200/50 dark:bg-zinc-800/80 px-1 py-0.5 rounded">admin</code></p>
-          </div>
         </div>
 
         {/* Login Form */}

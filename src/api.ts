@@ -1,6 +1,7 @@
 import {
   Item,
   Ministry,
+  MinistryCategory,
   Issue,
   IntelligenceStatus,
   SCTPAggregate,
@@ -16,6 +17,7 @@ import {
   Momentum,
   PolicyEvolutionChain,
   ItemEvolutionStatus,
+  PillarStat,
 } from './types';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -145,6 +147,75 @@ export async function createManualItem(payload: ManualItemPayload): Promise<Item
   });
 }
 
+export async function deleteItem(itemId: string): Promise<void> {
+  return request<void>(`/api/admin/items/${itemId}`, { method: 'DELETE' });
+}
+
+// --- Admin: Ministries / Regulatory Bodies --------------------------------
+
+export async function adminListMinistries(): Promise<Ministry[]> {
+  return request<Ministry[]>('/api/admin/ministries');
+}
+
+export interface MinistryPayload {
+  name: string;
+  minister_name?: string;
+  department?: string;
+  seal_url?: string;
+  icon?: string;
+  category?: MinistryCategory;
+}
+
+export async function createMinistry(payload: MinistryPayload): Promise<Ministry> {
+  return request<Ministry>('/api/admin/ministries', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateMinistry(
+  ministryId: string,
+  payload: Partial<MinistryPayload>
+): Promise<Ministry> {
+  return request<Ministry>(`/api/admin/ministries/${ministryId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteMinistry(ministryId: string): Promise<void> {
+  return request<void>(`/api/admin/ministries/${ministryId}`, { method: 'DELETE' });
+}
+
+// --- Themes / Pillars ------------------------------------------------------
+
+export async function fetchPillars(): Promise<string[]> {
+  return request<string[]>('/api/pillars');
+}
+
+export interface PillarRecord {
+  id: string;
+  name: string;
+}
+
+export async function adminListPillars(): Promise<PillarRecord[]> {
+  return request<PillarRecord[]>('/api/admin/pillars');
+}
+
+export async function createPillar(name: string): Promise<PillarRecord> {
+  return request<PillarRecord>('/api/admin/pillars', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function deletePillar(pillarId: string): Promise<void> {
+  return request<void>(`/api/admin/pillars/${pillarId}`, { method: 'DELETE' });
+}
+
 // --- Policy Intelligence -----------------------------------------------
 
 export async function fetchItemIntelligence(itemId: string): Promise<IntelligenceStatus> {
@@ -200,6 +271,10 @@ export async function fetchEngagementBreakdown(
 
 export async function fetchMomentum(): Promise<Momentum> {
   return request<Momentum>('/api/stats/momentum');
+}
+
+export async function fetchPillarStats(): Promise<PillarStat[]> {
+  return request<PillarStat[]>('/api/stats/pillars');
 }
 
 export async function fetchPolicyEvolution(): Promise<PolicyEvolutionChain[]> {

@@ -11,7 +11,7 @@ interface PendingIntelligenceProps {
 }
 
 const POLL_INTERVAL_MS = 4000;
-const MAX_POLLS = 15; // ~1 minute
+const MAX_POLLS = 45; // ~3 minutes — generation runs a research phase plus an LLM call, which can exceed a minute under load
 
 export default function PendingIntelligence({ itemId, isAdmin, isDark, onReady }: PendingIntelligenceProps) {
   const [generating, setGenerating] = useState(false);
@@ -66,7 +66,7 @@ export default function PendingIntelligence({ itemId, isAdmin, isDark, onReady }
       </p>
       <p className={`text-xs mt-1.5 max-w-md mx-auto ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
         {generating
-          ? 'Applying the analytical frameworks to this policy — this usually takes under a minute.'
+          ? 'Applying the analytical frameworks to this policy — this can take a couple of minutes.'
           : 'This item hasn’t been run through the analytical frameworks yet.'}
       </p>
 

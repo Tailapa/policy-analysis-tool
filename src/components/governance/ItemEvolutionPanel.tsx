@@ -11,7 +11,7 @@ interface ItemEvolutionPanelProps {
 }
 
 const POLL_INTERVAL_MS = 4000;
-const MAX_POLLS = 15; // ~1 minute
+const MAX_POLLS = 45; // ~3 minutes — evolution generation runs semantic clustering plus Serper-grounded research, which can exceed a minute under load
 
 export default function ItemEvolutionPanel({ itemId, isAdmin, isDark }: ItemEvolutionPanelProps) {
   const [evolution, setEvolution] = useState<ItemEvolution | null | undefined>(undefined);

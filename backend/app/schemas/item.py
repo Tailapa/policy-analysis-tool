@@ -4,14 +4,6 @@ from pydantic import BaseModel
 
 from app.schemas.common import format_item_date
 
-Pillar = Literal[
-    "Economic Growth",
-    "Infrastructure",
-    "Human Development",
-    "National Security",
-    "Rural & Agri",
-    "Misc",
-]
 Status = Literal["Initiated", "Completed", "Announced"]
 Impact = Literal["High", "Medium", "Low"]
 
@@ -28,7 +20,7 @@ class ItemOut(BaseModel):
     title: str
     description: str
     ministry: str
-    theme: Pillar
+    theme: str
     status: Status
     impact: Impact
     date: str

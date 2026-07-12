@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
-from app.core.db import close_client, ensure_indexes, get_database
+from app.core.db import close_client, ensure_indexes, get_database, seed_default_pillars
 from app.routers import (
     admin,
     admin_uploads,
@@ -17,6 +17,7 @@ from app.routers import (
     issues,
     ministries,
     items,
+    pillars,
     stats,
 )
 from app.services.admin_sync import sync_env_admins
@@ -25,6 +26,7 @@ from app.services.admin_sync import sync_env_admins
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await ensure_indexes()
+    await seed_default_pillars()
     await sync_env_admins(get_database())
     yield
     await close_client()
@@ -47,6 +49,7 @@ def create_app() -> FastAPI:
     app.include_router(items.states_router)
     app.include_router(issues.router)
     app.include_router(ministries.router)
+    app.include_router(pillars.router)
     app.include_router(stats.router)
     app.include_router(compare.router)
     app.include_router(auth.router)

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { GitCommitHorizontal, Loader2, Sparkles } from 'lucide-react';
 import { PolicyEvolutionChain } from '../../types';
 import { fetchPolicyEvolution, triggerEvolutionGeneration } from '../../api';
@@ -9,14 +9,18 @@ interface PolicyEvolutionCardProps {
   isAdmin: boolean;
 }
 
+const POLL_INTERVAL_MS = 5000;
+const MAX_POLLS = 36; // ~3 minutes — clustering across top theme clusters plus Serper research and LLM synthesis for each
+
 export default function PolicyEvolutionCard({ isDark, isAdmin }: PolicyEvolutionCardProps) {
   const [chains, setChains] = useState<PolicyEvolutionChain[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = () => {
     setLoading(true);
-    fetchPolicyEvolution()
+    return fetchPolicyEvolution()
       .then(setChains)
       .catch(() => setChains([]))
       .finally(() => setLoading(false));
@@ -24,17 +28,35 @@ export default function PolicyEvolutionCard({ isDark, isAdmin }: PolicyEvolution
 
   useEffect(() => {
     load();
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, []);
+
+  const poll = async (count: number, previousCount: number) => {
+    try {
+      const fresh = await fetchPolicyEvolution();
+      if (fresh.length !== previousCount) {
+        setChains(fresh);
+        setGenerating(false);
+        return;
+      }
+    } catch {
+      // keep polling — transient fetch errors shouldn't stop the loop
+    }
+    if (count >= MAX_POLLS) {
+      setGenerating(false);
+      return;
+    }
+    timerRef.current = setTimeout(() => poll(count + 1, previousCount), POLL_INTERVAL_MS);
+  };
 
   const handleGenerate = async () => {
     setGenerating(true);
     try {
       await triggerEvolutionGeneration();
-      // Clustering + Serper research + LLM synthesis take a while — poll once after a delay.
-      setTimeout(() => {
-        load();
-        setGenerating(false);
-      }, 20000);
+      const previousCount = chains?.length ?? 0;
+      timerRef.current = setTimeout(() => poll(1, previousCount), POLL_INTERVAL_MS);
     } catch {
       setGenerating(false);
     }

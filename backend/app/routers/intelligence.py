@@ -20,7 +20,7 @@ from app.schemas.intelligence import (
     SCTPAggregateOut,
     SCTPAggregatePoint,
 )
-from app.services.lookups import get_ministry_name_map
+from app.services.lookups import get_ministry_name_map, get_pillar_names
 from app.services.policy_intelligence import backfill_missing_intelligence, generate_intelligence_for_item
 
 item_intelligence_router = APIRouter(prefix="/api/items", tags=["intelligence"])
@@ -34,15 +34,6 @@ ALL_LIFECYCLE_STAGES = [
     "Implementation",
     "Evaluation",
     "Maintenance, Succession & Termination",
-]
-
-ALL_PILLARS = [
-    "Economic Growth",
-    "Infrastructure",
-    "Human Development",
-    "National Security",
-    "Rural & Agri",
-    "Misc",
 ]
 
 SCTP_POINT_CAP = 500
@@ -212,7 +203,8 @@ async def engagement_breakdown(
         )
 
     if group_by == "pillar":
-        rows = [_row(pillar, grouped.get(pillar, {})) for pillar in ALL_PILLARS]
+        pillars = await get_pillar_names(db)
+        rows = [_row(pillar, grouped.get(pillar, {})) for pillar in pillars]
     else:
         ministry_names = await get_ministry_name_map(db)
         rows = [

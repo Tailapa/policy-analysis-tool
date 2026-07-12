@@ -1,10 +1,4 @@
-export type Pillar = 
-  | 'Economic Growth'
-  | 'Infrastructure'
-  | 'Human Development'
-  | 'National Security'
-  | 'Rural & Agri'
-  | 'Misc';
+export type Pillar = string;
 
 export type Status = 'Initiated' | 'Completed' | 'Announced';
 
@@ -30,17 +24,25 @@ export interface Item {
   tags: string[];
 }
 
+export type MinistryCategory = 'ministry' | 'regulatory_body';
+
 export interface Ministry {
   id: string;
   name: string;
   minister: string;
   icon: string;
   itemCount: number;
+  category: MinistryCategory;
 }
 
 export type TextSize = 'sm' | 'md' | 'lg';
 
 export type ActiveTab = 'Overview' | 'Ministries' | 'Intelligence' | 'Compare' | 'Login' | 'Upload';
+
+export interface PillarStat {
+  pillar: string;
+  count: number;
+}
 
 export interface Issue {
   id: string;

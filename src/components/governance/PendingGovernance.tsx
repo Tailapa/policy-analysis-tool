@@ -11,7 +11,7 @@ interface PendingGovernanceProps {
 }
 
 const POLL_INTERVAL_MS = 4000;
-const MAX_POLLS = 15; // ~1 minute
+const MAX_POLLS = 45; // ~3 minutes — governance runs a research phase plus two sequential LLM calls (analysis + synthesis), so it reliably takes longer than intelligence generation
 
 export default function PendingGovernance({ itemId, isAdmin, isDark, onReady }: PendingGovernanceProps) {
   const [generating, setGenerating] = useState(false);
@@ -66,7 +66,7 @@ export default function PendingGovernance({ itemId, isAdmin, isDark, onReady }: 
       </p>
       <p className={`text-xs mt-1.5 max-w-md mx-auto ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
         {generating
-          ? 'Applying Kingdon Streams, Punctuated Equilibrium, Entrepreneurs, and Wickedness — this usually takes under a minute.'
+          ? 'Applying Kingdon Streams, Punctuated Equilibrium, Entrepreneurs, and Wickedness — this can take a couple of minutes.'
           : 'This item hasn’t been run through the governance frameworks yet.'}
       </p>
 

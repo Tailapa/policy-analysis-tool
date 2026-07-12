@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Item, Pillar, Status, Impact, Issue, Ministry } from '../types';
-import { ALL_ISSUES_ID } from '../constants';
+import { ALL_ISSUES_ID, getDefaultPillarMeta } from '../constants';
 import {
   Building2,
   MapPin,
@@ -24,6 +24,7 @@ interface OverviewProps {
   setCurrentIssueId: (id: string) => void;
   issues: Issue[];
   ministries: Ministry[];
+  pillars: string[];
   isLoading?: boolean;
 }
 
@@ -37,6 +38,7 @@ export default function Overview({
   setCurrentIssueId,
   issues,
   ministries,
+  pillars,
   isLoading
 }: OverviewProps) {
   const isDark = theme === 'dark';
@@ -104,15 +106,18 @@ export default function Overview({
   // Pillar coverage percentages, driving the segmented bar + legend
   const pillarBreakdown = useMemo(() => {
     const total = activeItems.length || 1;
-    const pillars: Pillar[] = ['Economic Growth', 'Infrastructure', 'Human Development', 'National Security', 'Rural & Agri', 'Misc'];
     return pillars.map(theme => {
       const count = activeItems.filter(i => i.theme === theme).length;
       return { theme, count, percent: (count / total) * 100 };
     });
-  }, [activeItems]);
+  }, [activeItems, pillars]);
 
-  // Pillar Metadata for styling (Light Theme vs Dark Theme)
-  const pillarMeta: Record<Pillar, { color: string; text: string; bg: string }> = {
+  const defaultPillarMeta = getDefaultPillarMeta(isDark);
+
+  // Pillar Metadata for styling (Light Theme vs Dark Theme) — static colors
+  // for the original 6 themes; admin-created themes fall back to
+  // defaultPillarMeta via the `pillarMeta[x] ?? defaultPillarMeta` pattern.
+  const pillarMeta: Record<string, { color: string; text: string; bg: string }> = {
     'Economic Growth': { 
       color: isDark ? '#6366F1' : '#185FA5', 
       text: isDark ? '#C7D2FE' : '#0C447C', 
@@ -485,7 +490,7 @@ export default function Overview({
               {pillarBreakdown.map(({ theme, percent }) => (
                 <div
                   key={theme}
-                  style={{ width: `${percent}%`, backgroundColor: pillarMeta[theme].color }}
+                  style={{ width: `${percent}%`, backgroundColor: (pillarMeta[theme] ?? defaultPillarMeta).color }}
                   title={`${theme} (${Math.round(percent)}%)`}
                 ></div>
               ))}
@@ -494,7 +499,7 @@ export default function Overview({
             {/* Legend Grid */}
             <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[11px] font-bold">
               {pillarBreakdown.map(({ theme, percent }) => {
-                const meta = pillarMeta[theme];
+                const meta = pillarMeta[theme] ?? defaultPillarMeta;
                 return (
                   <button
                     key={theme}
@@ -610,7 +615,7 @@ export default function Overview({
                 >
                   Clear Theme Filter
                 </button>
-                {(Object.keys(pillarMeta) as Pillar[]).map((theme) => (
+                {pillars.map((theme) => (
                   <button
                     key={theme}
                     onClick={() => {
@@ -622,9 +627,9 @@ export default function Overview({
                       isDark ? 'hover:bg-zinc-800' : 'hover:bg-zinc-50'
                     } ${selectedTheme === theme ? 'bg-emerald-500/10 font-bold text-emerald-600 dark:text-emerald-400' : ''}`}
                   >
-                    <span 
-                      className="w-2 h-2 rounded-full block shrink-0" 
-                      style={{ backgroundColor: pillarMeta[theme].color }}
+                    <span
+                      className="w-2 h-2 rounded-full block shrink-0"
+                      style={{ backgroundColor: (pillarMeta[theme] ?? defaultPillarMeta).color }}
                     ></span>
                     <span>{theme}</span>
                   </button>
@@ -948,7 +953,7 @@ export default function Overview({
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {paginatedItems.map((item) => {
-              const meta = pillarMeta[item.theme];
+              const meta = pillarMeta[item.theme] ?? defaultPillarMeta;
               const isState = item.geography.startsWith('state:');
               const stateName = isState ? item.geography.replace('state:', '').trim() : '';
 

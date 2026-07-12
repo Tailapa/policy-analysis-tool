@@ -8,7 +8,7 @@ import Compare from './components/Compare';
 import ItemDetail from './components/ItemDetail';
 import Login from './components/Login';
 import Upload from './components/Upload';
-import { fetchIssues, fetchItemsForIssue, fetchAllItems, fetchMinistries, getToken, clearToken } from './api';
+import { fetchIssues, fetchItemsForIssue, fetchAllItems, fetchMinistries, fetchPillars, getToken, clearToken } from './api';
 import { ALL_ISSUES_ID } from './constants';
 import { Sparkles, Calendar, Info, X } from 'lucide-react';
 
@@ -20,6 +20,7 @@ export default function App() {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [ministries, setMinistries] = useState<Ministry[]>([]);
+  const [pillars, setPillars] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -66,6 +67,10 @@ export default function App() {
     fetchMinistries()
       .then(setMinistries)
       .catch(err => setLoadError(err.message || 'Failed to load ministries from the backend'));
+
+    fetchPillars()
+      .then(setPillars)
+      .catch(err => setLoadError(err.message || 'Failed to load themes from the backend'));
   }, []);
 
   // Fetch items for whichever issue is currently selected (or every issue,
@@ -93,13 +98,15 @@ export default function App() {
       const targetId = issueId || freshIssues[0]?.id;
       if (!targetId) return;
 
-      const [freshItems, freshMinistries] = await Promise.all([
+      const [freshItems, freshMinistries, freshPillars] = await Promise.all([
         fetchItemsForIssue(targetId),
         fetchMinistries(),
+        fetchPillars(),
       ]);
       setCurrentIssueId(targetId);
       setItems(freshItems);
       setMinistries(freshMinistries);
+      setPillars(freshPillars);
     } catch (err: any) {
       setLoadError(err.message || 'Failed to refresh after publishing');
     }
@@ -258,6 +265,7 @@ export default function App() {
                 setCurrentIssueId={setCurrentIssueId}
                 issues={issues}
                 ministries={ministries}
+                pillars={pillars}
                 isLoading={isLoading}
               />
             )}
@@ -273,6 +281,7 @@ export default function App() {
                 setCurrentIssueId={setCurrentIssueId}
                 issues={issues}
                 ministries={ministries}
+                pillars={pillars}
                 isAdmin={isAdmin}
               />
             )}
@@ -283,12 +292,13 @@ export default function App() {
                 items={items}
                 currentIssueId={currentIssueId}
                 issues={issues}
+                pillars={pillars}
                 isAdmin={isAdmin}
               />
             )}
 
             {activeTab === 'Compare' && (
-              <Compare theme={theme} items={items} ministries={ministries} />
+              <Compare theme={theme} items={items} ministries={ministries} pillars={pillars} />
             )}
 
             {activeTab === 'Login' && (
@@ -305,6 +315,9 @@ export default function App() {
                 onBackToDashboard={() => setActiveTab('Overview')}
                 theme={theme}
                 ministries={ministries}
+                pillars={pillars}
+                onMinistriesChanged={refreshAfterPublish}
+                onPillarsChanged={() => fetchPillars().then(setPillars).catch(() => {})}
               />
             )}
           </>

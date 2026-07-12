@@ -3,14 +3,6 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
-Pillar = Literal[
-    "Economic Growth",
-    "Infrastructure",
-    "Human Development",
-    "National Security",
-    "Rural & Agri",
-    "Misc",
-]
 Subtype = Literal["Policy Update", "Announcement"]
 Status = Literal["Initiated", "Completed", "Announced"]
 ImpactLevel = Literal["High", "Medium", "Low"]
@@ -237,7 +229,7 @@ class PolicyItem(BaseModel):
     id: str = Field(alias="_id")
     title: str
     description: str
-    pillar: Pillar
+    pillar: str
     subtype: Subtype
     status: Status
     impact_level: ImpactLevel

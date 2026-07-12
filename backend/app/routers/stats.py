@@ -14,7 +14,7 @@ from app.schemas.stats import (
     PillarStat,
     StatsSummary,
 )
-from app.services.lookups import get_latest_issue_id, get_ministry_name_map
+from app.services.lookups import get_latest_issue_id, get_ministry_name_map, get_pillar_names
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
 
@@ -34,16 +34,6 @@ def _ols_slope(values: list[float]) -> float:
     numerator = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, values))
     denominator = sum((x - mean_x) ** 2 for x in xs)
     return numerator / denominator if denominator else 0.0
-
-ALL_PILLARS = [
-    "Economic Growth",
-    "Infrastructure",
-    "Human Development",
-    "National Security",
-    "Rural & Agri",
-    "Misc",
-]
-
 
 async def _resolve_issue_filter(issue_id: Optional[str], db: AsyncIOMotorDatabase, default_to_latest: bool) -> dict:
     if issue_id:
@@ -115,7 +105,8 @@ async def stats_pillars(issue_id: Optional[str] = None, db: AsyncIOMotorDatabase
         {"$group": {"_id": "$pillar", "count": {"$sum": 1}}},
     ]
     rows = {row["_id"]: row["count"] async for row in db[COLLECTIONS["policy_items"]].aggregate(pipeline)}
-    return [PillarStat(pillar=p, count=rows.get(p, 0)) for p in ALL_PILLARS]
+    pillars = await get_pillar_names(db)
+    return [PillarStat(pillar=p, count=rows.get(p, 0)) for p in pillars]
 
 
 @router.get("/momentum", response_model=MomentumOut)
@@ -123,7 +114,7 @@ async def stats_momentum(db: AsyncIOMotorDatabase = Depends(get_db)):
     """Both requested momentum methods in one response: `delta_pct` (latest
     vs. previous issue) and `trend_slope` (OLS slope across the trailing
     MOMENTUM_WINDOW issues) — the frontend can lead with whichever it wants
-    per entry. Themes = all 6 pillars; ministries = top MOMENTUM_MINISTRY_CAP
+    per entry. Themes = all live pillars; ministries = top MOMENTUM_MINISTRY_CAP
     by total volume across the window, matching the engagement-breakdown
     chart's cap for a consistent reading experience."""
     issues_col = db[COLLECTIONS["issues"]]
@@ -178,7 +169,8 @@ async def stats_momentum(db: AsyncIOMotorDatabase = Depends(get_db)):
             series=series,
         )
 
-    themes = [_build_entry(pillar, pillar_counts.get(pillar, {})) for pillar in ALL_PILLARS]
+    pillars = await get_pillar_names(db)
+    themes = [_build_entry(pillar, pillar_counts.get(pillar, {})) for pillar in pillars]
 
     ministry_names = await get_ministry_name_map(db)
     ministry_entries = [

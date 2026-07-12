@@ -15,12 +15,11 @@ interface IntelligenceOverviewProps {
   items: Item[];
   currentIssueId: string;
   issues: Issue[];
+  pillars: string[];
   isAdmin?: boolean;
 }
 
-const ALL_PILLARS: Pillar[] = ['Economic Growth', 'Infrastructure', 'Human Development', 'National Security', 'Rural & Agri', 'Misc'];
-
-export default function IntelligenceOverview({ theme, items, currentIssueId, issues, isAdmin }: IntelligenceOverviewProps) {
+export default function IntelligenceOverview({ theme, items, currentIssueId, issues, pillars, isAdmin }: IntelligenceOverviewProps) {
   const isDark = theme === 'dark';
   const [selectedPillar, setSelectedPillar] = useState<Pillar | undefined>(undefined);
   const [pillarDropdownOpen, setPillarDropdownOpen] = useState(false);
@@ -118,7 +117,7 @@ export default function IntelligenceOverview({ theme, items, currentIssueId, iss
                 <X size={12} />
                 <span>All Pillars</span>
               </button>
-              {ALL_PILLARS.map((p) => (
+              {pillars.map((p) => (
                 <button
                   key={p}
                   onClick={() => { setSelectedPillar(p); setPillarDropdownOpen(false); }}
