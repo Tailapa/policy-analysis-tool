@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Item } from '../../types';
-import { fetchAllItems, deleteItem } from '../../api';
-import { Trash2, Loader2, FileText, AlertTriangle } from 'lucide-react';
+import { Item, Ministry, MinistryCategory } from '../../types';
+import { fetchAllItems, deleteItem, adminListMinistries, updateItemMinistries } from '../../api';
+import { Trash2, Loader2, FileText, AlertTriangle, Link2, Check, X } from 'lucide-react';
 
 interface ManageItemsProps {
   isDark: boolean;
@@ -15,6 +15,13 @@ export default function ManageItems({ isDark, onItemsChanged }: ManageItemsProps
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const [ministries, setMinistries] = useState<Ministry[] | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editSelectedIds, setEditSelectedIds] = useState<Set<string>>(new Set());
+  const [editPrimaryId, setEditPrimaryId] = useState<string | null>(null);
+  const [savingLinks, setSavingLinks] = useState(false);
+  const [linksError, setLinksError] = useState<string | null>(null);
 
   const load = () => {
     setIsLoading(true);
@@ -48,11 +55,103 @@ export default function ManageItems({ isDark, onItemsChanged }: ManageItemsProps
     }
   };
 
+  const startEditLinks = (item: Item) => {
+    setLinksError(null);
+    setEditingId(item.id);
+    setEditSelectedIds(new Set(item.linkedMinistries.map((m) => m.id)));
+    setEditPrimaryId(item.linkedMinistries[0]?.id ?? null);
+    if (ministries === null) {
+      adminListMinistries()
+        .then(setMinistries)
+        .catch((err) => setLinksError(err.message || 'Failed to load ministries/regulatory bodies'));
+    }
+  };
+
+  const toggleSelected = (ministryId: string) => {
+    setEditSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(ministryId)) {
+        next.delete(ministryId);
+        if (editPrimaryId === ministryId) setEditPrimaryId(next.values().next().value ?? null);
+      } else {
+        next.add(ministryId);
+        if (!editPrimaryId) setEditPrimaryId(ministryId);
+      }
+      return next;
+    });
+  };
+
+  const saveLinks = async (itemId: string) => {
+    if (!editPrimaryId) {
+      setLinksError('Select at least one ministry or regulatory body, and mark one as primary.');
+      return;
+    }
+    setSavingLinks(true);
+    setLinksError(null);
+    try {
+      const additionalIds = [...editSelectedIds].filter((id): id is string => id !== editPrimaryId);
+      const updated = await updateItemMinistries(itemId, {
+        ministry_id: editPrimaryId,
+        additional_ministry_ids: additionalIds,
+      });
+      setItems((prev) => prev.map((it) => (it.id === itemId ? updated : it)));
+      setEditingId(null);
+      onItemsChanged();
+    } catch (err: any) {
+      setLinksError(err.message || 'Failed to update links');
+    } finally {
+      setSavingLinks(false);
+    }
+  };
+
   const filteredItems = items.filter((it) =>
     !searchQuery.trim() ||
     it.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     it.ministry.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const renderMinistryGroup = (label: string, category: MinistryCategory) => {
+    const group = (ministries || []).filter((m) => (m.category || 'ministry') === category);
+    if (group.length === 0) return null;
+    return (
+      <div>
+        <p className={`text-[10px] font-bold uppercase tracking-widest mb-1.5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>{label}</p>
+        <div className="space-y-1">
+          {group.map((m) => {
+            const isSelected = editSelectedIds.has(m.id);
+            const isPrimary = editPrimaryId === m.id;
+            return (
+              <div
+                key={m.id}
+                className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg border text-xs ${
+                  isDark ? 'border-zinc-800' : 'border-zinc-200'
+                }`}
+              >
+                <label className="flex items-center gap-2 cursor-pointer min-w-0">
+                  <input type="checkbox" checked={isSelected} onChange={() => toggleSelected(m.id)} />
+                  <span className={`truncate font-semibold ${isDark ? 'text-zinc-200' : 'text-zinc-800'}`}>{m.name}</span>
+                </label>
+                {isSelected && (
+                  <button
+                    onClick={() => setEditPrimaryId(m.id)}
+                    className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold cursor-pointer transition-colors ${
+                      isPrimary
+                        ? 'bg-indigo-600 text-white'
+                        : isDark
+                          ? 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+                          : 'bg-zinc-100 text-zinc-500 hover:text-zinc-800'
+                    }`}
+                  >
+                    {isPrimary ? 'Primary' : 'Set primary'}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -93,46 +192,96 @@ export default function ManageItems({ isDark, onItemsChanged }: ManageItemsProps
           {filteredItems.map((item) => (
             <div
               key={item.id}
-              className={`flex items-center justify-between gap-4 px-4 py-3 rounded-xl border ${
-                isDark ? 'bg-zinc-950/40 border-zinc-800' : 'bg-zinc-50 border-zinc-200'
-              }`}
+              className={`rounded-xl border ${isDark ? 'bg-zinc-950/40 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`}
             >
-              <div className="min-w-0">
-                <p className={`text-xs font-bold truncate ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>{item.title}</p>
-                <p className="text-[10px] text-zinc-500 font-semibold mt-0.5 truncate">
-                  {item.ministry} &bull; {item.theme} &bull; {item.date}
-                </p>
+              <div className="flex items-center justify-between gap-4 px-4 py-3">
+                <div className="min-w-0">
+                  <p className={`text-xs font-bold truncate ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>{item.title}</p>
+                  <p className="text-[10px] text-zinc-500 font-semibold mt-0.5 truncate">
+                    {item.linkedMinistries.map((m) => m.name).join(' + ') || item.ministry} &bull; {item.theme} &bull; {item.date}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => (editingId === item.id ? setEditingId(null) : startEditLinks(item))}
+                    className={`p-2 rounded-full cursor-pointer transition-colors ${
+                      isDark ? 'text-zinc-400 hover:text-indigo-400 hover:bg-indigo-500/10' : 'text-zinc-500 hover:text-indigo-600 hover:bg-indigo-50'
+                    }`}
+                    title="Edit ministry/regulatory body links"
+                  >
+                    <Link2 size={14} />
+                  </button>
+
+                  {confirmingId === item.id ? (
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] font-bold flex items-center gap-1 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                        <AlertTriangle size={11} /> Delete permanently?
+                      </span>
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        disabled={deletingId === item.id}
+                        className="px-3 py-1 rounded-full text-[10px] font-bold bg-rose-600 hover:bg-rose-500 text-white cursor-pointer transition-colors"
+                      >
+                        {deletingId === item.id ? <Loader2 size={11} className="animate-spin" /> : 'Confirm'}
+                      </button>
+                      <button
+                        onClick={() => setConfirmingId(null)}
+                        className={`px-3 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-colors ${
+                          isDark ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700' : 'bg-zinc-200 text-zinc-700 hover:bg-zinc-300'
+                        }`}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmingId(item.id)}
+                      className="p-2 rounded-full text-zinc-400 hover:text-rose-500 hover:bg-rose-500/10 cursor-pointer transition-colors"
+                      title="Delete item"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {confirmingId === item.id ? (
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className={`text-[10px] font-bold flex items-center gap-1 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
-                    <AlertTriangle size={11} /> Delete permanently?
-                  </span>
-                  <button
-                    onClick={() => handleDelete(item.id)}
-                    disabled={deletingId === item.id}
-                    className="px-3 py-1 rounded-full text-[10px] font-bold bg-rose-600 hover:bg-rose-500 text-white cursor-pointer transition-colors"
-                  >
-                    {deletingId === item.id ? <Loader2 size={11} className="animate-spin" /> : 'Confirm'}
-                  </button>
-                  <button
-                    onClick={() => setConfirmingId(null)}
-                    className={`px-3 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-colors ${
-                      isDark ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700' : 'bg-zinc-200 text-zinc-700 hover:bg-zinc-300'
-                    }`}
-                  >
-                    Cancel
-                  </button>
+              {editingId === item.id && (
+                <div className={`mx-4 mb-4 p-4 rounded-xl border space-y-3 ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'}`}>
+                  {linksError && (
+                    <div className={`p-2 rounded-lg border text-[11px] font-bold ${isDark ? 'bg-rose-500/10 border-rose-500/20 text-rose-400' : 'bg-rose-50 border-rose-100 text-rose-700'}`}>
+                      {linksError}
+                    </div>
+                  )}
+                  {ministries === null ? (
+                    <div className="flex items-center gap-2 text-xs text-zinc-400">
+                      <Loader2 size={13} className="animate-spin" /> Loading ministries…
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {renderMinistryGroup('Ministries', 'ministry')}
+                      {renderMinistryGroup('Regulatory Bodies', 'regulatory_body')}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 justify-end">
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className={`px-3 py-1.5 rounded-full text-[11px] font-bold cursor-pointer transition-colors flex items-center gap-1 ${
+                        isDark ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700' : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
+                      }`}
+                    >
+                      <X size={11} /> Cancel
+                    </button>
+                    <button
+                      onClick={() => saveLinks(item.id)}
+                      disabled={savingLinks}
+                      className="px-3 py-1.5 rounded-full text-[11px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer transition-colors flex items-center gap-1 disabled:opacity-50"
+                    >
+                      {savingLinks ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
+                      Save Links
+                    </button>
+                  </div>
                 </div>
-              ) : (
-                <button
-                  onClick={() => setConfirmingId(item.id)}
-                  className="shrink-0 p-2 rounded-full text-zinc-400 hover:text-rose-500 hover:bg-rose-500/10 cursor-pointer transition-colors"
-                  title="Delete item"
-                >
-                  <Trash2 size={14} />
-                </button>
               )}
             </div>
           ))}

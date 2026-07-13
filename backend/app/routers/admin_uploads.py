@@ -9,10 +9,10 @@ from app.core.db import get_db
 from app.core.deps import get_current_admin
 from app.schemas.item import serialize_item
 from app.schemas.upload import IssueUploadResponse
-from app.services.embeddings import generate_embedding_for_item
+from app.services.draft_detection import verify_draft_status
 from app.services.ingestion import IngestionError, ingest_report
-from app.services.policy_governance import generate_governance_for_item
-from app.services.policy_intelligence import generate_intelligence_for_item
+from app.services.lookups import get_ministry_map
+from app.services.policy_evolution import generate_embedding_then_evolution
 
 router = APIRouter(prefix="/api/admin", tags=["admin", "uploads"])
 
@@ -43,17 +43,17 @@ async def upload_issue(
     except IngestionError as e:
         raise HTTPException(status_code=422, detail=str(e))
 
-    ministries_col = db["ministries"]
+    ministry_map = await get_ministry_map(db)
     items_out = []
     for doc in item_docs:
-        ministry_doc = await ministries_col.find_one({"_id": doc["ministry_id"]})
-        items_out.append(serialize_item(doc, ministry_doc["name"] if ministry_doc else "Unknown Ministry"))
+        items_out.append(serialize_item(doc, ministry_map))
         # Optional, decoupled from ingestion (backend-spec.md §5 step 7 / §1) —
         # runs after the response-affecting work is done and never blocks or
-        # rolls back the publish if it fails.
-        background_tasks.add_task(generate_embedding_for_item, db, doc["_id"])
-        background_tasks.add_task(generate_intelligence_for_item, db, doc["_id"])
-        background_tasks.add_task(generate_governance_for_item, db, doc["_id"])
+        # rolls back the publish if it fails. Evolution needs the embedding
+        # to exist first, so it's chained rather than queued independently.
+        background_tasks.add_task(generate_embedding_then_evolution, db, doc["_id"])
+        if doc.get("is_draft"):
+            background_tasks.add_task(verify_draft_status, db, doc["_id"])
 
     return IssueUploadResponse(
         issue_id=str(issue_doc["_id"]),

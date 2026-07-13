@@ -5,9 +5,10 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.db import COLLECTIONS
 from app.services import docx_parser, pdf_parser
+from app.services.draft_detection import detect_draft_from_text
 from app.services.geo_tagger import tag_geography
 from app.services.issue_meta import IssueMetaError, extract_issue_meta
-from app.services.ministry_resolver import resolve_ministry
+from app.services.ministry_resolver import find_additional_regulatory_body_links, resolve_ministry
 from app.services.report_chunker import ChunkingError, chunk_report
 from app.services.source_link_matcher import match_source_links
 
@@ -74,6 +75,10 @@ async def ingest_report(
         ministry_id, match_score = await resolve_ministry(db, parsed.ministry_raw, ministry_match_threshold)
         scope, states, geo_terms = tag_geography(f"{parsed.title} {parsed.description}")
         sources, link_ptr = match_source_links(parsed.source_label, ordered_links, link_ptr)
+        additional_ministry_ids = await find_additional_regulatory_body_links(
+            db, f"{parsed.title} {parsed.description}", ministry_id
+        )
+        is_draft = detect_draft_from_text(parsed.title, parsed.description)
 
         doc = {
             "title": parsed.title,
@@ -83,6 +88,7 @@ async def ingest_report(
             "status": parsed.status,
             "impact_level": parsed.impact_level,
             "ministry_id": ministry_id,
+            "additional_ministry_ids": additional_ministry_ids,
             "sources": sources,
             "geography": {"scope": scope, "states": states},
             "tags": [],
@@ -91,6 +97,8 @@ async def ingest_report(
             "key_features": None,
             "why_it_matters": None,
             "embedding": None,
+            "is_draft": is_draft,
+            "draft_verification": None,
             "parsing_meta": {"ministry_match_score": match_score, "geo_match_terms": geo_terms},
             "created_at": now,
             "updated_at": now,

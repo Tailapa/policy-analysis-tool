@@ -26,7 +26,15 @@ export default function Masthead({
   onLoginClick,
   onLogout,
 }: MastheadProps) {
-  const tabs: ActiveTab[] = ['Overview', 'Ministries', 'Intelligence', 'Compare'];
+  const tabs: ActiveTab[] = ['Overview', 'Ministries', 'RegulatoryBodies', 'Drafts'];
+  const TAB_LABELS: Record<ActiveTab, string> = {
+    Overview: 'Overview',
+    Ministries: 'Ministries',
+    RegulatoryBodies: 'Regulatory Bodies',
+    Drafts: 'Drafts',
+    Login: 'Login',
+    Upload: 'Upload',
+  };
   const isDark = theme === 'dark';
 
   return (
@@ -74,7 +82,7 @@ export default function Masthead({
                       : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50'
                 }`}
               >
-                {tab}
+                {TAB_LABELS[tab]}
               </button>
             );
           })}

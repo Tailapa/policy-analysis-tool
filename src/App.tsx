@@ -3,12 +3,11 @@ import { ActiveTab, TextSize, Item, Issue, Ministry } from './types';
 import Masthead from './components/Masthead';
 import Overview from './components/Overview';
 import Ministries from './components/Ministries';
-import IntelligenceOverview from './components/IntelligenceOverview';
-import Compare from './components/Compare';
+import Drafts from './components/Drafts';
 import ItemDetail from './components/ItemDetail';
 import Login from './components/Login';
 import Upload from './components/Upload';
-import { fetchIssues, fetchItemsForIssue, fetchAllItems, fetchMinistries, fetchPillars, getToken, clearToken } from './api';
+import { fetchIssues, fetchItemsForIssue, fetchAllItems, fetchMinistries, fetchPillars, fetchItem, getToken, clearToken } from './api';
 import { ALL_ISSUES_ID } from './constants';
 import { Sparkles, Calendar, Info, X } from 'lucide-react';
 
@@ -122,6 +121,17 @@ export default function App() {
   const handleSelectItem = (item: Item) => {
     setSelectedItem(item);
     window.scrollTo(0, 0);
+  };
+
+  // Used by an item's Policy Evolution section to jump straight to a
+  // related policy from an earlier issue (only the id is known there).
+  const handleOpenItem = async (itemId: string) => {
+    try {
+      const item = await fetchItem(itemId);
+      handleSelectItem(item);
+    } catch (err: any) {
+      setLoadError(err.message || 'Failed to open the related item');
+    }
   };
 
   const handleFilterMinistryFromDetail = (ministryName: string) => {
@@ -247,6 +257,7 @@ export default function App() {
             item={selectedItem}
             onBack={() => { setSelectedItem(null); window.scrollTo(0, 0); }}
             onFilterMinistry={handleFilterMinistryFromDetail}
+            onOpenItem={handleOpenItem}
             theme={theme}
             issueLabel={activeIssueData?.label}
             isAdmin={isAdmin}
@@ -272,6 +283,8 @@ export default function App() {
 
             {activeTab === 'Ministries' && (
               <Ministries
+                category="ministry"
+                title="Ministries Directory"
                 onSelectItem={handleSelectItem}
                 selectedMinistry={selectedMinistry}
                 setSelectedMinistry={setSelectedMinistry}
@@ -282,23 +295,35 @@ export default function App() {
                 issues={issues}
                 ministries={ministries}
                 pillars={pillars}
-                isAdmin={isAdmin}
               />
             )}
 
-            {activeTab === 'Intelligence' && (
-              <IntelligenceOverview
+            {activeTab === 'RegulatoryBodies' && (
+              <Ministries
+                category="regulatory_body"
+                title="Regulatory Bodies Directory"
+                onSelectItem={handleSelectItem}
+                selectedMinistry={selectedMinistry}
+                setSelectedMinistry={setSelectedMinistry}
                 theme={theme}
                 items={items}
                 currentIssueId={currentIssueId}
+                setCurrentIssueId={setCurrentIssueId}
                 issues={issues}
+                ministries={ministries}
                 pillars={pillars}
-                isAdmin={isAdmin}
               />
             )}
 
-            {activeTab === 'Compare' && (
-              <Compare theme={theme} items={items} ministries={ministries} pillars={pillars} />
+            {activeTab === 'Drafts' && (
+              <Drafts
+                onSelectItem={handleSelectItem}
+                theme={theme}
+                items={items}
+                currentIssueId={currentIssueId}
+                setCurrentIssueId={setCurrentIssueId}
+                issues={issues}
+              />
             )}
 
             {activeTab === 'Login' && (

@@ -8,15 +8,22 @@ interface ItemEvolutionPanelProps {
   itemId: string;
   isAdmin: boolean;
   isDark: boolean;
+  onOpenItem?: (itemId: string) => void;
 }
 
 const POLL_INTERVAL_MS = 4000;
-const MAX_POLLS = 45; // ~3 minutes — evolution generation runs semantic clustering plus Serper-grounded research, which can exceed a minute under load
+const MAX_POLLS = 30; // ~2 minutes
 
-export default function ItemEvolutionPanel({ itemId, isAdmin, isDark }: ItemEvolutionPanelProps) {
+/** Auto-generated at ingestion (once the item's embedding is ready) from
+ * other PDF-ingested items in earlier issues — no web grounding. Renders
+ * nothing at all when there's no related history in prior editions, per
+ * the "only from the PDFs I've uploaded" requirement. Admins get a
+ * Regenerate control once a chain exists, for re-running it after data
+ * changes; there's no manual "generate" affordance since this isn't meant
+ * to be triggered from scratch here. */
+export default function ItemEvolutionPanel({ itemId, isAdmin, isDark, onOpenItem }: ItemEvolutionPanelProps) {
   const [evolution, setEvolution] = useState<ItemEvolution | null | undefined>(undefined);
   const [generating, setGenerating] = useState(false);
-  const [pollCount, setPollCount] = useState(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -51,20 +58,20 @@ export default function ItemEvolutionPanel({ itemId, isAdmin, isDark }: ItemEvol
       setGenerating(false);
       return;
     }
-    setPollCount(count + 1);
     timerRef.current = setTimeout(() => poll(count + 1), POLL_INTERVAL_MS);
   };
 
-  const handleGenerate = async () => {
+  const handleRegenerate = async () => {
     setGenerating(true);
-    setPollCount(0);
     try {
-      await triggerItemEvolutionGeneration(itemId);
+      await triggerItemEvolutionGeneration(itemId, true);
       timerRef.current = setTimeout(() => poll(1), POLL_INTERVAL_MS);
     } catch {
       setGenerating(false);
     }
   };
+
+  if (!evolution) return null;
 
   return (
     <div className={`p-6 rounded-[1.75rem] border shadow-xl transition-all ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'}`}>
@@ -75,12 +82,12 @@ export default function ItemEvolutionPanel({ itemId, isAdmin, isDark }: ItemEvol
             <span>Policy Evolution</span>
           </h3>
           <p className={`text-xs leading-relaxed mt-1 ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
-            This policy's own genealogy — the semantically related items tracked in this dashboard, plus real-world antecedents found via web research.
+            This policy's genealogy across earlier editions — built only from policies already tracked in this dashboard's uploaded PDFs.
           </p>
         </div>
-        {isAdmin && evolution && (
+        {isAdmin && (
           <button
-            onClick={handleGenerate}
+            onClick={handleRegenerate}
             disabled={generating}
             className={`px-4 py-2 text-xs font-bold rounded-full transition-colors border shadow-md flex items-center gap-2 shrink-0 ${
               generating
@@ -94,33 +101,7 @@ export default function ItemEvolutionPanel({ itemId, isAdmin, isDark }: ItemEvol
         )}
       </div>
 
-      {evolution === undefined ? (
-        <p className={`text-xs font-semibold ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>Loading…</p>
-      ) : evolution === null ? (
-        <div className="text-center py-4">
-          <p className={`text-xs font-semibold ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
-            {generating ? 'Tracing this policy’s genealogy…' : 'No evolution timeline generated for this policy yet.'}
-          </p>
-          {isAdmin ? (
-            <button
-              onClick={handleGenerate}
-              disabled={generating}
-              className={`mt-4 px-5 py-2 text-xs font-bold rounded-full transition-colors border shadow-md inline-flex items-center gap-2 ${
-                generating
-                  ? 'opacity-60 cursor-not-allowed border-indigo-600 bg-indigo-600 text-white'
-                  : 'bg-indigo-600 border-indigo-600 text-white hover:bg-indigo-500 cursor-pointer shadow-indigo-600/10'
-              }`}
-            >
-              {generating ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-              <span>{generating ? `Generating${'.'.repeat((pollCount % 3) + 1)}` : 'Generate Policy Evolution'}</span>
-            </button>
-          ) : (
-            <p className={`text-[11px] mt-1 ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>Check back once an admin has generated it.</p>
-          )}
-        </div>
-      ) : (
-        <EvolutionTimeline chain={evolution} isDark={isDark} />
-      )}
+      <EvolutionTimeline chain={evolution} isDark={isDark} onOpenItem={onOpenItem} />
     </div>
   );
 }

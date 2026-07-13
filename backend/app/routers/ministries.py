@@ -8,17 +8,20 @@ from app.core.utils import parse_object_id
 from app.schemas.issue import serialize_issue
 from app.schemas.item import serialize_item
 from app.schemas.ministry import MinistryDetailOut, MinistryOut, serialize_ministry
+from app.services.lookups import get_ministry_map
 
 router = APIRouter(prefix="/api/ministries", tags=["ministries"])
 
 
 async def _item_counts_by_ministry(db: AsyncIOMotorDatabase) -> dict:
-    return {
-        row["_id"]: row["count"]
-        async for row in db[COLLECTIONS["policy_items"]].aggregate(
-            [{"$group": {"_id": "$ministry_id", "count": {"$sum": 1}}}]
-        )
-    }
+    """Counts an item once per distinct linked ministry/regulatory body
+    (primary + additional), so dual-linked items count toward both."""
+    pipeline = [
+        {"$project": {"all_ids": {"$concatArrays": [["$ministry_id"], {"$ifNull": ["$additional_ministry_ids", []]}]}}},
+        {"$unwind": "$all_ids"},
+        {"$group": {"_id": "$all_ids", "count": {"$sum": 1}}},
+    ]
+    return {row["_id"]: row["count"] async for row in db[COLLECTIONS["policy_items"]].aggregate(pipeline)}
 
 
 @router.get("", response_model=list[MinistryOut])
@@ -45,10 +48,11 @@ async def get_ministry(ministry_id: str, db: AsyncIOMotorDatabase = Depends(get_
     item_docs = [
         item
         async for item in db[COLLECTIONS["policy_items"]]
-        .find({"ministry_id": oid})
+        .find({"$or": [{"ministry_id": oid}, {"additional_ministry_ids": oid}]})
         .sort("item_date", -1)
     ]
-    items = [serialize_item(item, doc["name"]) for item in item_docs]
+    ministry_map = await get_ministry_map(db)
+    items = [serialize_item(item, ministry_map) for item in item_docs]
 
     base = serialize_ministry(doc, len(items))
     return MinistryDetailOut(**base.model_dump(), items=items)

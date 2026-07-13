@@ -9,49 +9,14 @@ from app.schemas.evolution import (
     GenerateEvolutionOut,
     ItemEvolutionOut,
     ItemEvolutionStatusOut,
-    PolicyEvolutionChainOut,
 )
 from app.services.policy_evolution import (
     backfill_missing_item_evolution,
     generate_item_evolution,
-    generate_policy_evolution,
 )
 
 item_evolution_router = APIRouter(prefix="/api/items", tags=["evolution"])
-evolution_router = APIRouter(prefix="/api/intelligence", tags=["intelligence", "evolution"])
 admin_evolution_router = APIRouter(prefix="/api/admin", tags=["admin", "evolution"])
-
-
-@evolution_router.get("/evolution", response_model=list[PolicyEvolutionChainOut])
-async def list_policy_evolution(db: AsyncIOMotorDatabase = Depends(get_db)):
-    """Public read of whatever's cached — returns [] if nothing's been
-    generated yet (same 'pending, not 404/500' pattern as the intelligence
-    and governance status endpoints)."""
-    docs = [doc async for doc in db[COLLECTIONS["policy_evolution"]].find()]
-    return [
-        PolicyEvolutionChainOut(
-            id=str(doc["_id"]),
-            theme_label=doc["theme_label"],
-            stages=doc["stages"],
-            synthesis=doc["synthesis"],
-            sources=doc.get("sources", []),
-            generated_at=doc["generated_at"].isoformat(),
-            model=doc["model"],
-        )
-        for doc in docs
-    ]
-
-
-@admin_evolution_router.post(
-    "/intelligence/generate-evolution", response_model=GenerateEvolutionOut, status_code=202
-)
-async def trigger_evolution_generation(
-    background_tasks: BackgroundTasks,
-    db: AsyncIOMotorDatabase = Depends(get_db),
-    _admin: dict = Depends(get_current_admin),
-):
-    background_tasks.add_task(generate_policy_evolution, db)
-    return GenerateEvolutionOut()
 
 
 @item_evolution_router.get("/{item_id}/evolution", response_model=ItemEvolutionStatusOut)

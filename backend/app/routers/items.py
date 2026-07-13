@@ -6,7 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.db import COLLECTIONS, get_db
 from app.core.utils import parse_object_id
 from app.schemas.item import ItemOut, PaginatedItems, serialize_item
-from app.services.lookups import get_ministry_name_map
+from app.services.lookups import get_ministry_map
 
 router = APIRouter(prefix="/api/items", tags=["items"])
 states_router = APIRouter(prefix="/api/states", tags=["items"])
@@ -36,7 +36,8 @@ async def list_items(
     if impact_level:
         query["impact_level"] = impact_level
     if ministry_id:
-        query["ministry_id"] = parse_object_id(ministry_id)
+        oid = parse_object_id(ministry_id)
+        query["$or"] = [{"ministry_id": oid}, {"additional_ministry_ids": oid}]
     if state:
         query["geography.states"] = state
     if issue_id:
@@ -56,11 +57,8 @@ async def list_items(
     )
     docs = [doc async for doc in cursor]
 
-    ministry_names = await get_ministry_name_map(db)
-    items = [
-        serialize_item(doc, ministry_names.get(str(doc["ministry_id"]), "Unknown Ministry"))
-        for doc in docs
-    ]
+    ministry_map = await get_ministry_map(db)
+    items = [serialize_item(doc, ministry_map) for doc in docs]
 
     return PaginatedItems(items=items, page=page, page_size=page_size, total=total, total_pages=total_pages)
 
@@ -72,9 +70,8 @@ async def get_item(item_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
     if not doc:
         raise HTTPException(status_code=404, detail="Item not found")
 
-    ministry_doc = await db[COLLECTIONS["ministries"]].find_one({"_id": doc["ministry_id"]})
-    ministry_name = ministry_doc["name"] if ministry_doc else "Unknown Ministry"
-    return serialize_item(doc, ministry_name)
+    ministry_map = await get_ministry_map(db)
+    return serialize_item(doc, ministry_map)
 
 
 @states_router.get("/{state_code}/items", response_model=list[ItemOut])
@@ -83,8 +80,5 @@ async def list_items_by_state(state_code: str, db: AsyncIOMotorDatabase = Depend
     cursor = collection.find({"geography.states": state_code}).sort("item_date", -1)
     docs = [doc async for doc in cursor]
 
-    ministry_names = await get_ministry_name_map(db)
-    return [
-        serialize_item(doc, ministry_names.get(str(doc["ministry_id"]), "Unknown Ministry"))
-        for doc in docs
-    ]
+    ministry_map = await get_ministry_map(db)
+    return [serialize_item(doc, ministry_map) for doc in docs]

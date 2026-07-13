@@ -39,3 +39,35 @@ async def resolve_ministry(
         }
     )
     return result.inserted_id, 0.0
+
+
+REGULATORY_BODY_MENTION_THRESHOLD = 90
+MAX_ADDITIONAL_LINKS = 2
+
+
+async def find_additional_regulatory_body_links(
+    db: AsyncIOMotorDatabase, text: str, exclude_id: ObjectId
+) -> list[ObjectId]:
+    """Best-effort secondary linking: catches inline mentions of a
+    regulatory body within an item's own title/description (e.g. "...
+    notified by the Securities and Exchange Board of India (SEBI)...") so
+    the item shows up under both its primary ministry and that regulatory
+    body. Primary ministry resolution (resolve_ministry above) stays
+    untouched — this only ever adds regulatory_body-category links, never
+    reassigns the primary."""
+    collection = db[COLLECTIONS["ministries"]]
+    bodies = [
+        doc
+        async for doc in collection.find({"category": "regulatory_body"}, {"name": 1})
+        if doc["_id"] != exclude_id
+    ]
+    if not bodies:
+        return []
+
+    matches: list[ObjectId] = []
+    for body in bodies:
+        if fuzz.partial_ratio(body["name"], text) >= REGULATORY_BODY_MENTION_THRESHOLD:
+            matches.append(body["_id"])
+        if len(matches) >= MAX_ADDITIONAL_LINKS:
+            break
+    return matches

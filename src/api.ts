@@ -3,22 +3,8 @@ import {
   Ministry,
   MinistryCategory,
   Issue,
-  IntelligenceStatus,
-  SCTPAggregate,
-  EngagementAggregate,
-  LifecycleAggregate,
-  LowiAggregate,
-  IntelligenceFilters,
-  GovernanceStatus,
-  Fingerprint,
-  CompareType,
-  CompareGovernanceResult,
-  EngagementBreakdown,
-  Momentum,
-  PolicyEvolutionChain,
   ItemEvolutionStatus,
   PillarStat,
-  MinistryGenomeIndex,
 } from './types';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -96,6 +82,10 @@ export async function fetchAllItems(): Promise<Item[]> {
   return fetchAllPages({});
 }
 
+export async function fetchItem(itemId: string): Promise<Item> {
+  return request<Item>(`/api/items/${itemId}`);
+}
+
 export async function fetchMinistries(): Promise<Ministry[]> {
   return request<Ministry[]>('/api/ministries');
 }
@@ -150,6 +140,21 @@ export async function createManualItem(payload: ManualItemPayload): Promise<Item
 
 export async function deleteItem(itemId: string): Promise<void> {
   return request<void>(`/api/admin/items/${itemId}`, { method: 'DELETE' });
+}
+
+export async function updateItemMinistries(
+  itemId: string,
+  payload: { ministry_id: string; additional_ministry_ids: string[] }
+): Promise<Item> {
+  return request<Item>(`/api/admin/items/${itemId}/ministries`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function triggerDraftVerification(itemId: string): Promise<{ status: string }> {
+  return request<{ status: string }>(`/api/admin/items/${itemId}/verify-draft`, { method: 'POST' });
 }
 
 // --- Admin: Ministries / Regulatory Bodies --------------------------------
@@ -217,73 +222,10 @@ export async function deletePillar(pillarId: string): Promise<void> {
   return request<void>(`/api/admin/pillars/${pillarId}`, { method: 'DELETE' });
 }
 
-// --- Policy Intelligence -----------------------------------------------
-
-export async function fetchItemIntelligence(itemId: string): Promise<IntelligenceStatus> {
-  return request<IntelligenceStatus>(`/api/items/${itemId}/intelligence`);
-}
-
-export async function triggerIntelligenceGeneration(itemId: string, force = false): Promise<{ status: string }> {
-  return request<{ status: string }>(`/api/admin/items/${itemId}/generate-intelligence?force=${force}`, {
-    method: 'POST',
-  });
-}
-
-export async function triggerIntelligenceBackfill(limit = 100): Promise<{ backfilled: number }> {
-  return request<{ backfilled: number }>(`/api/admin/intelligence/backfill?limit=${limit}`, {
-    method: 'POST',
-  });
-}
-
-function filtersToQuery(filters?: IntelligenceFilters): string {
-  if (!filters) return '';
-  const params = new URLSearchParams();
-  if (filters.issue_id) params.set('issue_id', filters.issue_id);
-  if (filters.ministry_id) params.set('ministry_id', filters.ministry_id);
-  if (filters.pillar) params.set('pillar', filters.pillar);
-  const qs = params.toString();
-  return qs ? `?${qs}` : '';
-}
-
-export async function fetchSCTPAggregate(filters?: IntelligenceFilters): Promise<SCTPAggregate> {
-  return request<SCTPAggregate>(`/api/intelligence/sctp${filtersToQuery(filters)}`);
-}
-
-export async function fetchEngagementAggregate(filters?: IntelligenceFilters): Promise<EngagementAggregate> {
-  return request<EngagementAggregate>(`/api/intelligence/engagement${filtersToQuery(filters)}`);
-}
-
-export async function fetchLifecycleAggregate(filters?: IntelligenceFilters): Promise<LifecycleAggregate> {
-  return request<LifecycleAggregate>(`/api/intelligence/lifecycle${filtersToQuery(filters)}`);
-}
-
-export async function fetchLowiAggregate(filters?: IntelligenceFilters): Promise<LowiAggregate> {
-  return request<LowiAggregate>(`/api/intelligence/lowi${filtersToQuery(filters)}`);
-}
-
-export async function fetchEngagementBreakdown(
-  groupBy: 'ministry' | 'pillar',
-  issueId?: string
-): Promise<EngagementBreakdown> {
-  const params = new URLSearchParams({ group_by: groupBy });
-  if (issueId) params.set('issue_id', issueId);
-  return request<EngagementBreakdown>(`/api/intelligence/engagement-breakdown?${params.toString()}`);
-}
-
-export async function fetchMomentum(): Promise<Momentum> {
-  return request<Momentum>('/api/stats/momentum');
-}
+// --- Policy Evolution (PDF-only, per-item) --------------------------------
 
 export async function fetchPillarStats(): Promise<PillarStat[]> {
   return request<PillarStat[]>('/api/stats/pillars');
-}
-
-export async function fetchPolicyEvolution(): Promise<PolicyEvolutionChain[]> {
-  return request<PolicyEvolutionChain[]>('/api/intelligence/evolution');
-}
-
-export async function triggerEvolutionGeneration(): Promise<{ status: string }> {
-  return request<{ status: string }>('/api/admin/intelligence/generate-evolution', { method: 'POST' });
 }
 
 export async function fetchItemEvolution(itemId: string): Promise<ItemEvolutionStatus> {
@@ -294,54 +236,4 @@ export async function triggerItemEvolutionGeneration(itemId: string, force = fal
   return request<{ status: string }>(`/api/admin/items/${itemId}/generate-evolution?force=${force}`, {
     method: 'POST',
   });
-}
-
-// --- Governance Intelligence ---------------------------------------------
-
-export async function fetchItemGovernance(itemId: string): Promise<GovernanceStatus> {
-  return request<GovernanceStatus>(`/api/items/${itemId}/governance`);
-}
-
-export async function triggerGovernanceGeneration(itemId: string, force = false): Promise<{ status: string }> {
-  return request<{ status: string }>(`/api/admin/items/${itemId}/generate-governance?force=${force}`, {
-    method: 'POST',
-  });
-}
-
-export async function triggerGovernanceBackfill(limit = 100): Promise<{ backfilled: number }> {
-  return request<{ backfilled: number }>(`/api/admin/governance/backfill?limit=${limit}`, {
-    method: 'POST',
-  });
-}
-
-export async function fetchMinistryFingerprint(ministryId: string): Promise<Fingerprint> {
-  return request<Fingerprint>(`/api/governance/ministries/${ministryId}/fingerprint`);
-}
-
-export async function fetchSectorFingerprint(pillar: string): Promise<Fingerprint> {
-  return request<Fingerprint>(`/api/governance/sectors/${encodeURIComponent(pillar)}/fingerprint`);
-}
-
-export async function fetchMinistryGenomeIndex(ministryId: string): Promise<MinistryGenomeIndex> {
-  return request<MinistryGenomeIndex>(`/api/governance/ministries/${ministryId}/genome-index`);
-}
-
-export interface BulkGenerateResult {
-  queued_intelligence: number;
-  queued_governance: number;
-}
-
-export async function triggerMinistryBulkGenerate(ministryId: string): Promise<BulkGenerateResult> {
-  return request<BulkGenerateResult>(`/api/admin/ministries/${ministryId}/generate-intelligence`, {
-    method: 'POST',
-  });
-}
-
-export async function fetchGovernanceCompare(
-  type: CompareType,
-  idA: string,
-  idB: string
-): Promise<CompareGovernanceResult> {
-  const params = new URLSearchParams({ type, id_a: idA, id_b: idB });
-  return request<CompareGovernanceResult>(`/api/governance/compare?${params.toString()}`);
 }

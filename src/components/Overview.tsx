@@ -3,6 +3,7 @@ import { Item, Pillar, Status, Impact, Issue, Ministry } from '../types';
 import { ALL_ISSUES_ID, getDefaultPillarMeta } from '../constants';
 import {
   Building2,
+  Landmark,
   MapPin,
   ExternalLink,
   ChevronDown,
@@ -57,6 +58,7 @@ export default function Overview({
 
   // Dropdown open states
   const [ministryDropdownOpen, setMinistryDropdownOpen] = useState(false);
+  const [regulatoryBodyDropdownOpen, setRegulatoryBodyDropdownOpen] = useState(false);
   const [themeDropdownOpen, setThemeDropdownOpen] = useState(false);
   const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
@@ -72,16 +74,35 @@ export default function Overview({
     return { total, highImpact, ministriesCount };
   }, [activeItems]);
 
-  // Ministries appearing in this issue's items, with issue-scoped counts
-  // (the ministries prop's itemCount is global across all issues, so we
-  // derive local counts here rather than using it directly for this filter).
+  // Ministries/Regulatory Bodies appearing in this issue's items, with
+  // issue-scoped counts (the ministries prop's itemCount is global across
+  // all issues, so we derive local counts here rather than using it
+  // directly for these filters). An item linked to more than one entity
+  // (e.g. a ministry AND a regulatory body) counts toward each.
   const ministryOptions = useMemo(() => {
     const counts = new Map<string, number>();
-    activeItems.forEach(i => counts.set(i.ministry, (counts.get(i.ministry) || 0) + 1));
+    activeItems.forEach(i => (i.linkedMinistries || []).forEach(m => {
+      if (m.category !== 'ministry') return;
+      counts.set(m.name, (counts.get(m.name) || 0) + 1);
+    }));
     return Array.from(counts.entries())
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
   }, [activeItems]);
+
+  const regulatoryBodyOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    activeItems.forEach(i => (i.linkedMinistries || []).forEach(m => {
+      if (m.category !== 'regulatory_body') return;
+      counts.set(m.name, (counts.get(m.name) || 0) + 1);
+    }));
+    return Array.from(counts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [activeItems]);
+
+  const selectedIsMinistry = !!selectedMinistry && ministryOptions.some(m => m.name === selectedMinistry);
+  const selectedIsRegulatoryBody = !!selectedMinistry && regulatoryBodyOptions.some(m => m.name === selectedMinistry);
 
   // Most active ministry this issue + its metadata, driving the "Featured
   // Ministry" spotlight card
@@ -89,7 +110,7 @@ export default function Overview({
     if (ministryOptions.length === 0) return null;
     const top = ministryOptions[0];
     const meta = ministries.find(m => m.name === top.name);
-    const blurb = activeItems.find(i => i.ministry === top.name)?.description || '';
+    const blurb = activeItems.find(i => (i.linkedMinistries || []).some(m => m.name === top.name))?.description || '';
     return { name: top.name, count: top.count, minister: meta?.minister, blurb };
   }, [ministryOptions, ministries, activeItems]);
 
@@ -158,8 +179,8 @@ export default function Overview({
     const referenceDate = new Date(2026, 6, 9); // July 9, 2026 from metadata
 
     return activeItems.filter(item => {
-      // Ministry filter
-      if (selectedMinistry && item.ministry !== selectedMinistry) return false;
+      // Ministry / Regulatory Body filter
+      if (selectedMinistry && !(item.linkedMinistries || []).some(m => m.name === selectedMinistry)) return false;
       // Theme filter
       if (selectedTheme && item.theme !== selectedTheme) return false;
       // Status filter
@@ -471,19 +492,20 @@ export default function Overview({
             <button
               onClick={() => {
                 setMinistryDropdownOpen(!ministryDropdownOpen);
+                setRegulatoryBodyDropdownOpen(false);
                 setThemeDropdownOpen(false);
                 setDateDropdownOpen(false);
                 setStatusDropdownOpen(false);
                 setImpactDropdownOpen(false);
               }}
               className={`px-4 py-2 text-xs font-bold rounded-full flex items-center gap-1.5 border cursor-pointer transition-all shadow-sm ${
-                isDark 
-                  ? 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-zinc-100' 
+                isDark
+                  ? 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-zinc-100'
                   : 'bg-zinc-50 border-zinc-200 hover:bg-zinc-100 text-zinc-800'
-              } ${selectedMinistry ? 'ring-2 ring-amber-500' : ''}`}
+              } ${selectedIsMinistry ? 'ring-2 ring-amber-500' : ''}`}
             >
               <Building2 size={13} className="text-amber-500" />
-              <span>{selectedMinistry || 'Ministry: All'}</span>
+              <span>{selectedIsMinistry ? selectedMinistry : 'Ministry: All'}</span>
               <ChevronDown size={12} className="text-zinc-400" />
             </button>
             {ministryDropdownOpen && (
@@ -522,12 +544,74 @@ export default function Overview({
             )}
           </div>
 
+          {/* Regulatory Body Filter Pill */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setRegulatoryBodyDropdownOpen(!regulatoryBodyDropdownOpen);
+                setMinistryDropdownOpen(false);
+                setThemeDropdownOpen(false);
+                setDateDropdownOpen(false);
+                setStatusDropdownOpen(false);
+                setImpactDropdownOpen(false);
+              }}
+              className={`px-4 py-2 text-xs font-bold rounded-full flex items-center gap-1.5 border cursor-pointer transition-all shadow-sm ${
+                isDark
+                  ? 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-zinc-100'
+                  : 'bg-zinc-50 border-zinc-200 hover:bg-zinc-100 text-zinc-800'
+              } ${selectedIsRegulatoryBody ? 'ring-2 ring-purple-500' : ''}`}
+            >
+              <Landmark size={13} className="text-purple-500" />
+              <span>{selectedIsRegulatoryBody ? selectedMinistry : 'Regulatory Body: All'}</span>
+              <ChevronDown size={12} className="text-zinc-400" />
+            </button>
+            {regulatoryBodyDropdownOpen && (
+              <div className={`absolute top-11 left-0 border rounded-2xl shadow-2xl w-64 max-h-60 overflow-y-auto z-30 py-1.5 text-xs transition-all ${
+                isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-800'
+              }`}>
+                <button
+                  onClick={() => {
+                    setSelectedMinistry(undefined);
+                    setRegulatoryBodyDropdownOpen(false);
+                    setCurrentPage(1);
+                  }}
+                  className={`w-full text-left px-3 py-2 font-bold border-b text-purple-500 ${
+                    isDark ? 'hover:bg-zinc-800 border-zinc-800' : 'hover:bg-zinc-50 border-zinc-100'
+                  }`}
+                >
+                  Clear Regulatory Body Filter
+                </button>
+                {regulatoryBodyOptions.length === 0 ? (
+                  <p className="px-3 py-2 text-zinc-400">No regulatory bodies in this issue.</p>
+                ) : (
+                  regulatoryBodyOptions.map((m) => (
+                    <button
+                      key={m.name}
+                      onClick={() => {
+                        setSelectedMinistry(m.name);
+                        setRegulatoryBodyDropdownOpen(false);
+                        setCurrentPage(1);
+                      }}
+                      className={`w-full text-left px-3 py-2 flex items-center justify-between ${
+                        isDark ? 'hover:bg-zinc-800' : 'hover:bg-zinc-50'
+                      } ${selectedMinistry === m.name ? 'bg-indigo-500/10 font-bold text-indigo-600 dark:text-indigo-400' : ''}`}
+                    >
+                      <span className="truncate">{m.name}</span>
+                      <span className="text-[10px] text-zinc-400">({m.count})</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Theme Filter Pill */}
           <div className="relative">
             <button
               onClick={() => {
                 setThemeDropdownOpen(!themeDropdownOpen);
                 setMinistryDropdownOpen(false);
+                setRegulatoryBodyDropdownOpen(false);
                 setDateDropdownOpen(false);
                 setStatusDropdownOpen(false);
                 setImpactDropdownOpen(false);
@@ -587,6 +671,7 @@ export default function Overview({
               onClick={() => {
                 setDateDropdownOpen(!dateDropdownOpen);
                 setMinistryDropdownOpen(false);
+                setRegulatoryBodyDropdownOpen(false);
                 setThemeDropdownOpen(false);
                 setStatusDropdownOpen(false);
                 setImpactDropdownOpen(false);
@@ -721,6 +806,7 @@ export default function Overview({
               onClick={() => {
                 setStatusDropdownOpen(!statusDropdownOpen);
                 setMinistryDropdownOpen(false);
+                setRegulatoryBodyDropdownOpen(false);
                 setThemeDropdownOpen(false);
                 setDateDropdownOpen(false);
                 setImpactDropdownOpen(false);
@@ -777,6 +863,7 @@ export default function Overview({
               onClick={() => {
                 setImpactDropdownOpen(!impactDropdownOpen);
                 setMinistryDropdownOpen(false);
+                setRegulatoryBodyDropdownOpen(false);
                 setThemeDropdownOpen(false);
                 setDateDropdownOpen(false);
                 setStatusDropdownOpen(false);

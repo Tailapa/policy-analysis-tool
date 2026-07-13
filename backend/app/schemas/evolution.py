@@ -33,16 +33,6 @@ class EvolutionSourceOut(BaseModel):
     query: str
 
 
-class PolicyEvolutionChainOut(BaseModel):
-    id: str
-    theme_label: str
-    stages: list[EvolutionStageResult]
-    synthesis: str
-    sources: list[EvolutionSourceOut] = Field(default_factory=list)
-    generated_at: str
-    model: str
-
-
 class GenerateEvolutionOut(BaseModel):
     status: str = "queued"
 

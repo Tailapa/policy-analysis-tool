@@ -1,8 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Ministry, MinistryCategory, Item, Pillar, Status, Impact, Issue } from '../types';
 import { ALL_ISSUES_ID, getDefaultPillarMeta } from '../constants';
-import MinistryGovernanceProfile from './governance/MinistryGovernanceProfile';
-import MinistryBulkGenerateButton from './governance/MinistryBulkGenerateButton';
 import {
   Building2,
   Coins,
@@ -51,6 +49,8 @@ import {
 } from 'lucide-react';
 
 interface MinistriesProps {
+  category: MinistryCategory;
+  title: string;
   onSelectItem: (item: Item) => void;
   selectedMinistry?: string;
   setSelectedMinistry: (ministry: string | undefined) => void;
@@ -61,10 +61,11 @@ interface MinistriesProps {
   issues: Issue[];
   ministries: Ministry[];
   pillars: string[];
-  isAdmin?: boolean;
 }
 
 export default function Ministries({
+  category,
+  title,
   onSelectItem,
   selectedMinistry,
   setSelectedMinistry,
@@ -74,13 +75,11 @@ export default function Ministries({
   setCurrentIssueId,
   issues,
   ministries,
-  pillars,
-  isAdmin
+  pillars
 }: MinistriesProps) {
   const isDark = theme === 'dark';
   const activeItems = items || [];
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<MinistryCategory | undefined>(undefined);
 
   // Scoped filters inside ministry detail
   const [selectedTheme, setSelectedTheme] = useState<Pillar | undefined>(undefined);
@@ -144,35 +143,38 @@ export default function Ministries({
     Hammer, Pickaxe, UserCog, Scissors, Baby, Trophy, Rocket, Atom
   };
 
-  // 1. Filtered list of ministries for directory page
+  // 1. Filtered list of ministries for directory page, scoped to this tab's
+  // fixed category (Ministries tab vs. Regulatory Bodies tab)
   const filteredMinistries = useMemo(() => {
-    // Dynamically count items per ministry based on the active issue's items
-    const ministriesWithCounts = ministries.map(m => {
-      const count = activeItems.filter(item => item.ministry === m.name).length;
-      return {
-        ...m,
-        itemCount: count
-      };
-    });
+    // Dynamically count items per ministry based on the active issue's items —
+    // an item linked to more than one ministry/regulatory body counts toward each
+    const ministriesWithCounts = ministries
+      .filter(m => (m.category || 'ministry') === category)
+      .map(m => {
+        const count = activeItems.filter(item =>
+          (item.linkedMinistries || []).some(lm => lm.name === m.name)
+        ).length;
+        return {
+          ...m,
+          itemCount: count
+        };
+      });
 
     // Sort descending by item count
     const sorted = ministriesWithCounts.sort((a, b) => b.itemCount - a.itemCount);
-    const categoryFiltered = selectedCategory
-      ? sorted.filter(m => (m.category || 'ministry') === selectedCategory)
-      : sorted;
-    if (!searchQuery.trim()) return categoryFiltered;
+    if (!searchQuery.trim()) return sorted;
 
-    return categoryFiltered.filter(m =>
+    return sorted.filter(m =>
       m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (m.minister && m.minister.toLowerCase().includes(searchQuery.toLowerCase()))
     );
-  }, [searchQuery, activeItems, ministries, selectedCategory]);
+  }, [searchQuery, activeItems, ministries, category]);
 
   // 2. Filtered list of items inside selected ministry
   const scopedItems = useMemo(() => {
     if (!selectedMinistry) return [];
     return activeItems.filter(item => {
-      if (item.ministry !== selectedMinistry) return false;
+      if (!(item.linkedMinistries || []).some(lm => lm.name === selectedMinistry)) return false;
       if (selectedTheme && item.theme !== selectedTheme) return false;
       if (selectedStatus && item.status !== selectedStatus) return false;
       if (selectedImpact && item.impact !== selectedImpact) return false;
@@ -211,10 +213,10 @@ export default function Ministries({
                 <h2 className={`text-2xl md:text-3xl font-extrabold font-display tracking-tight ${
                   isDark ? 'text-zinc-100' : 'text-zinc-900'
                 }`}>
-                  Ministries Directory
+                  {title}
                 </h2>
                 <p className={`text-sm mt-1 ${isDark ? 'text-zinc-400' : 'text-zinc-600 font-medium'}`}>
-                  Explore tracked updates for <strong>{issueBadgeLabel}</strong> organizable by Ministry
+                  Explore tracked updates for <strong>{issueBadgeLabel}</strong>
                 </p>
               </div>
 
@@ -295,32 +297,6 @@ export default function Ministries({
                 </button>
               )}
             </div>
-          </div>
-
-          {/* Category Filter Tabs */}
-          <div className="flex items-center gap-2">
-            {([
-              { value: undefined, label: 'All' },
-              { value: 'ministry' as MinistryCategory, label: 'Ministries' },
-              { value: 'regulatory_body' as MinistryCategory, label: 'Regulatory Bodies' },
-            ]).map((opt) => {
-              const isActive = selectedCategory === opt.value;
-              return (
-                <button
-                  key={opt.label}
-                  onClick={() => setSelectedCategory(opt.value)}
-                  className={`px-4 py-1.5 rounded-full border text-xs font-bold cursor-pointer transition-all ${
-                    isActive
-                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/10'
-                      : isDark
-                        ? 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-750'
-                        : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 shadow-sm'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
           </div>
 
           {/* Ministries Grid */}
@@ -413,17 +389,10 @@ export default function Ministries({
                   ? 'text-indigo-300 bg-indigo-950/40 border-indigo-900/40'
                   : 'text-indigo-800 bg-indigo-50 border-indigo-200 shadow-sm'
               }`}>
-                {activeItems.filter(item => item.ministry === selectedMinistry).length} active updates
+                {activeItems.filter(item => (item.linkedMinistries || []).some(lm => lm.name === selectedMinistry)).length} active updates
               </span>
-              {isAdmin && activeMinistryData?.id && (
-                <MinistryBulkGenerateButton ministryId={activeMinistryData.id} isDark={isDark} />
-              )}
             </div>
           </div>
-
-          {activeMinistryData?.id && (
-            <MinistryGovernanceProfile ministryId={activeMinistryData.id} isDark={isDark} />
-          )}
 
           {/* Inline Filter Bar */}
           <div className={`p-5 rounded-2xl border shadow-xl flex flex-wrap gap-3 items-center justify-between transition-all ${

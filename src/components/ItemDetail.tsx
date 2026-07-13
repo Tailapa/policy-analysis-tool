@@ -1,66 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { Item, PolicyIntelligence, PolicyGovernance } from '../types';
-import { Building2, MapPin, ExternalLink, ArrowLeft, Sparkles, Network } from 'lucide-react';
+import React from 'react';
+import { Item } from '../types';
+import { Building2, MapPin, ExternalLink, ArrowLeft, AlertTriangle } from 'lucide-react';
 import nfprcLogo from '../../assets/NFPRC_logo.png';
-import { fetchItemIntelligence, fetchItemGovernance, triggerIntelligenceGeneration, triggerGovernanceGeneration } from '../api';
-import PendingIntelligence from './intelligence/PendingIntelligence';
-import SourcesConsulted from './intelligence/SourcesConsulted';
-import { FRAMEWORK_PANELS } from './intelligence/registry';
-import PendingGovernance from './governance/PendingGovernance';
-import { GOVERNANCE_PANELS } from './governance/registry';
-import GovernanceSynthesis from './governance/GovernanceSynthesis';
 import ItemEvolutionPanel from './governance/ItemEvolutionPanel';
-import DownloadPdfButton from './DownloadPdfButton';
-import UpdateRecordButton from './UpdateRecordButton';
 
 interface ItemDetailProps {
   item: Item;
   onBack: () => void;
   onFilterMinistry?: (ministryName: string) => void;
+  onOpenItem?: (itemId: string) => void;
   theme: 'light' | 'dark';
   issueLabel?: string;
   isAdmin?: boolean;
 }
 
-type DetailTab = 'Summary' | 'Intelligence' | 'Governance';
-
-export default function ItemDetail({ item, onBack, onFilterMinistry, theme, issueLabel, isAdmin }: ItemDetailProps) {
+export default function ItemDetail({ item, onBack, onFilterMinistry, onOpenItem, theme, issueLabel, isAdmin }: ItemDetailProps) {
   const isState = item.geography.startsWith('state:');
   const stateName = isState ? item.geography.replace('state:', '').trim() : '';
 
   const isDark = theme === 'dark';
-
-  const [detailTab, setDetailTab] = useState<DetailTab>('Summary');
-  const [intelligence, setIntelligence] = useState<PolicyIntelligence | null | undefined>(undefined);
-  const [governance, setGovernance] = useState<PolicyGovernance | null | undefined>(undefined);
-  const [intelligenceError, setIntelligenceError] = useState<string | null>(null);
-  const [governanceError, setGovernanceError] = useState<string | null>(null);
-  const [intelligenceRetryKey, setIntelligenceRetryKey] = useState(0);
-  const [governanceRetryKey, setGovernanceRetryKey] = useState(0);
-
-  useEffect(() => {
-    // undefined = not fetched yet, null = fetched and pending, object = ready
-    setIntelligence(undefined);
-    setGovernance(undefined);
-    setIntelligenceError(null);
-    setGovernanceError(null);
-  }, [item.id]);
-
-  useEffect(() => {
-    if (detailTab !== 'Intelligence' || intelligence !== undefined) return;
-    setIntelligenceError(null);
-    fetchItemIntelligence(item.id)
-      .then((status) => setIntelligence(status.intelligence))
-      .catch((err) => setIntelligenceError(err.message || 'Failed to load policy intelligence'));
-  }, [detailTab, item.id, intelligence, intelligenceRetryKey]);
-
-  useEffect(() => {
-    if (detailTab !== 'Governance' || governance !== undefined) return;
-    setGovernanceError(null);
-    fetchItemGovernance(item.id)
-      .then((status) => setGovernance(status.governance))
-      .catch((err) => setGovernanceError(err.message || 'Failed to load governance intelligence'));
-  }, [detailTab, item.id, governance, governanceRetryKey]);
+  const linkedMinistries = item.linkedMinistries.length > 0 ? item.linkedMinistries : null;
 
   return (
     <div className={`rounded-[2.5rem] border overflow-hidden shadow-2xl max-w-4xl mx-auto my-6 animate-fade-in transition-all ${
@@ -100,38 +59,6 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, theme, issu
           <span>Back to directory</span>
         </button>
 
-        {/* Summary | Policy Intelligence tab strip */}
-        <div className={`no-print inline-flex gap-1.5 p-1 rounded-full shadow-inner border mb-6 transition-all ${
-          isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
-        }`}>
-          {(['Summary', 'Intelligence', 'Governance'] as DetailTab[]).map((tab) => {
-            const isActive = detailTab === tab;
-            return (
-              <button
-                key={tab}
-                onClick={() => setDetailTab(tab)}
-                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  isActive
-                    ? isDark
-                      ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/50'
-                      : 'bg-white text-zinc-900 shadow-sm border border-zinc-200'
-                    : isDark
-                      ? 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30'
-                      : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50'
-                }`}
-              >
-                {tab === 'Intelligence' && <Sparkles size={12} />}
-                {tab === 'Governance' && <Network size={12} />}
-                <span>
-                  {tab === 'Intelligence' ? 'Policy Intelligence' : tab === 'Governance' ? 'Governance Intelligence' : tab}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {detailTab === 'Summary' && (
-        <>
         {/* Full Title */}
         <h1 className={`text-2xl md:text-3xl font-extrabold font-display tracking-tight mb-5 leading-tight ${
           isDark ? 'text-zinc-100' : 'text-zinc-900'
@@ -162,19 +89,37 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, theme, issu
                 <td className="p-4 flex items-center flex-wrap gap-2">
                   {isState ? (
                     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold shadow-sm ${
-                      isDark 
-                        ? 'bg-purple-950/40 border-purple-850/50 text-purple-300' 
+                      isDark
+                        ? 'bg-purple-950/40 border-purple-850/50 text-purple-300'
                         : 'bg-purple-50 border-purple-150 text-purple-800'
                     }`}>
                       <MapPin size={13} className="text-purple-500" />
                       <span>{stateName} (State)</span>
                     </span>
+                  ) : linkedMinistries ? (
+                    linkedMinistries.map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => onFilterMinistry?.(m.name)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold shadow-sm cursor-pointer transition-colors ${
+                          isDark
+                            ? 'bg-indigo-950/40 border-indigo-850/50 text-indigo-300 hover:bg-zinc-800'
+                            : 'bg-indigo-50 border-indigo-150 text-indigo-800 hover:bg-zinc-100'
+                        }`}
+                      >
+                        <Building2 size={13} className="text-indigo-500" />
+                        <span>{m.name}</span>
+                        {m.category === 'regulatory_body' && (
+                          <span className="text-[9px] font-bold uppercase tracking-wider opacity-70">Regulatory Body</span>
+                        )}
+                      </button>
+                    ))
                   ) : (
                     <button
                       onClick={() => onFilterMinistry?.(item.ministry)}
                       className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold shadow-sm cursor-pointer transition-colors ${
-                        isDark 
-                          ? 'bg-indigo-950/40 border-indigo-850/50 text-indigo-300 hover:bg-zinc-800' 
+                        isDark
+                          ? 'bg-indigo-950/40 border-indigo-850/50 text-indigo-300 hover:bg-zinc-800'
                           : 'bg-indigo-50 border-indigo-150 text-indigo-800 hover:bg-zinc-100'
                       }`}
                     >
@@ -209,7 +154,7 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, theme, issu
                 </td>
               </tr>
 
-              {/* Row 4: Status + Impact */}
+              {/* Row 4: Status + Impact + Draft */}
               <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-zinc-200'}`}>
                 <th className={`p-4 text-xs font-bold uppercase tracking-wider border-r ${
                   isDark ? 'bg-zinc-950/60 text-zinc-400 border-zinc-800' : 'bg-zinc-50 text-zinc-500 border-zinc-200'
@@ -218,23 +163,29 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, theme, issu
                 </th>
                 <td className="p-4 flex items-center gap-3 flex-wrap">
                   <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                    item.status === 'Completed' 
-                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
-                      : item.status === 'Initiated' 
-                        ? 'bg-indigo-50 text-indigo-800 border border-indigo-200' 
+                    item.status === 'Completed'
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : item.status === 'Initiated'
+                        ? 'bg-indigo-50 text-indigo-800 border border-indigo-200'
                         : 'bg-purple-50 text-purple-800 border border-purple-200'
                   }`}>
                     {item.status}
                   </span>
                   <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                    item.impact === 'High' 
-                      ? 'bg-rose-50 text-rose-800 border border-rose-200' 
-                      : item.impact === 'Medium' 
-                        ? 'bg-amber-50 text-amber-800 border border-amber-200' 
+                    item.impact === 'High'
+                      ? 'bg-rose-50 text-rose-800 border border-rose-200'
+                      : item.impact === 'Medium'
+                        ? 'bg-amber-50 text-amber-800 border border-amber-200'
                         : 'bg-zinc-100 text-zinc-700 border border-zinc-200'
                   }`}>
                     {item.impact} Impact
                   </span>
+                  {item.isDraft && (
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                      <AlertTriangle size={11} />
+                      <span>Draft</span>
+                    </span>
+                  )}
                 </td>
               </tr>
 
@@ -251,8 +202,8 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, theme, issu
                       <span
                         key={tag}
                         className={`px-2.5 py-1 border rounded-lg text-xs font-bold shadow-sm ${
-                          isDark 
-                            ? 'bg-zinc-800/60 border-zinc-700 text-zinc-300' 
+                          isDark
+                            ? 'bg-zinc-800/60 border-zinc-700 text-zinc-300'
                             : 'bg-zinc-100 border-zinc-200 text-zinc-700'
                         }`}
                       >
@@ -264,6 +215,23 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, theme, issu
               </tr>
             </tbody>
           </table>
+        </div>
+
+        {item.isDraft && item.draftVerification && !item.draftVerification.stillDraft && (
+          <div className={`mb-8 p-4 rounded-2xl border text-xs leading-relaxed flex items-start gap-3 ${
+            isDark ? 'bg-amber-500/10 border-amber-500/20 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-900'
+          }`}>
+            <AlertTriangle size={15} className="shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">AI cross-check suggests this may have since been finalized</p>
+              <p className="mt-1 opacity-90">{item.draftVerification.reasoning}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Policy Evolution — only from PDFs already uploaded to this dashboard */}
+        <div className="mb-8">
+          <ItemEvolutionPanel itemId={item.id} isAdmin={!!isAdmin} isDark={isDark} onOpenItem={onOpenItem} />
         </div>
 
         {/* Sources Section */}
@@ -279,14 +247,14 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, theme, issu
               <li
                 key={index}
                 className={`flex items-start gap-3 p-4 border rounded-2xl text-xs transition-all ${
-                  isDark 
-                    ? 'bg-zinc-950/50 border-zinc-800' 
+                  isDark
+                    ? 'bg-zinc-950/50 border-zinc-800'
                     : 'bg-zinc-50 border-zinc-200 shadow-sm'
                 }`}
               >
                 <span className={`w-6 h-6 rounded-full border font-bold text-xs flex items-center justify-center shrink-0 mt-0.5 ${
-                  isDark 
-                    ? 'bg-indigo-950/40 border-indigo-800 text-indigo-300' 
+                  isDark
+                    ? 'bg-indigo-950/40 border-indigo-800 text-indigo-300'
                     : 'bg-indigo-50 border-indigo-200 text-indigo-800'
                 }`}>
                   {index + 1}
@@ -307,124 +275,6 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, theme, issu
             ))}
           </ul>
         </div>
-        </>
-        )}
-
-        {detailTab === 'Intelligence' && (
-          <div className="space-y-5">
-            {intelligenceError ? (
-              <div className={`p-10 text-center rounded-[1.75rem] border shadow-xl ${
-                isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
-              }`}>
-                <p className={`text-sm font-bold ${isDark ? 'text-rose-400' : 'text-rose-600'}`}>Couldn't load Policy Intelligence</p>
-                <p className={`text-xs mt-1.5 ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>{intelligenceError}</p>
-                <button
-                  onClick={() => { setIntelligence(undefined); setIntelligenceRetryKey((k) => k + 1); }}
-                  className="mt-4 px-5 py-2 bg-indigo-600 text-white text-xs font-bold rounded-full hover:bg-indigo-500 transition-colors cursor-pointer"
-                >
-                  Retry
-                </button>
-              </div>
-            ) : intelligence === undefined ? (
-              <div className={`p-10 text-center rounded-[1.75rem] border shadow-xl ${
-                isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
-              }`}>
-                <p className={`text-xs font-semibold ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>Loading analysis…</p>
-              </div>
-            ) : intelligence === null ? (
-              <PendingIntelligence
-                itemId={item.id}
-                isAdmin={!!isAdmin}
-                isDark={isDark}
-                onReady={(intel) => setIntelligence(intel)}
-              />
-            ) : (
-              <>
-                <ItemEvolutionPanel itemId={item.id} isAdmin={!!isAdmin} isDark={isDark} />
-                {FRAMEWORK_PANELS.map((panel) => panel.render(intelligence, isDark))}
-                {intelligence.sources.length > 0 && (
-                  <SourcesConsulted sources={intelligence.sources} isDark={isDark} />
-                )}
-                <DownloadPdfButton isDark={isDark} label="Download Policy Intelligence as PDF" />
-                {isAdmin && (
-                  <div className="no-print flex justify-center">
-                    <UpdateRecordButton<PolicyIntelligence>
-                      isDark={isDark}
-                      previousGeneratedAt={intelligence.generated_at}
-                      label="Update Policy Intelligence"
-                      onTrigger={() => triggerIntelligenceGeneration(item.id, true)}
-                      onPoll={async () => {
-                        const status = await fetchItemIntelligence(item.id);
-                        return { data: status.intelligence, generatedAt: status.intelligence?.generated_at ?? null };
-                      }}
-                      onComplete={(data) => setIntelligence(data)}
-                    />
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
-
-        {detailTab === 'Governance' && (
-          <div className="space-y-5">
-            {governanceError ? (
-              <div className={`p-10 text-center rounded-[1.75rem] border shadow-xl ${
-                isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
-              }`}>
-                <p className={`text-sm font-bold ${isDark ? 'text-rose-400' : 'text-rose-600'}`}>Couldn't load Governance Intelligence</p>
-                <p className={`text-xs mt-1.5 ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>{governanceError}</p>
-                <button
-                  onClick={() => { setGovernance(undefined); setGovernanceRetryKey((k) => k + 1); }}
-                  className="mt-4 px-5 py-2 bg-indigo-600 text-white text-xs font-bold rounded-full hover:bg-indigo-500 transition-colors cursor-pointer"
-                >
-                  Retry
-                </button>
-              </div>
-            ) : governance === undefined ? (
-              <div className={`p-10 text-center rounded-[1.75rem] border shadow-xl ${
-                isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
-              }`}>
-                <p className={`text-xs font-semibold ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>Loading analysis…</p>
-              </div>
-            ) : governance === null ? (
-              <PendingGovernance
-                itemId={item.id}
-                isAdmin={!!isAdmin}
-                isDark={isDark}
-                onReady={(gov) => setGovernance(gov)}
-              />
-            ) : (
-              <>
-                {GOVERNANCE_PANELS.map((panel) => panel.render(governance, isDark))}
-                <GovernanceSynthesis
-                  researchBrief={governance.research_brief}
-                  synthesisConclusion={governance.synthesis_conclusion}
-                  isDark={isDark}
-                />
-                {governance.sources.length > 0 && (
-                  <SourcesConsulted sources={governance.sources} isDark={isDark} />
-                )}
-                <DownloadPdfButton isDark={isDark} label="Download Governance Intelligence as PDF" />
-                {isAdmin && (
-                  <div className="no-print flex justify-center">
-                    <UpdateRecordButton<PolicyGovernance>
-                      isDark={isDark}
-                      previousGeneratedAt={governance.generated_at}
-                      label="Update Governance Intelligence"
-                      onTrigger={() => triggerGovernanceGeneration(item.id, true)}
-                      onPoll={async () => {
-                        const status = await fetchItemGovernance(item.id);
-                        return { data: status.governance, generatedAt: status.governance?.generated_at ?? null };
-                      }}
-                      onComplete={(data) => setGovernance(data)}
-                    />
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 """Provider-agnostic structured-output generation, shared by
-policy_intelligence.py and policy_governance.py. Extracted so the two
-frameworks' generation services don't each carry their own copy of the
-empirically-validated Gemini/OpenRouter SDK workarounds.
+policy_evolution.py and draft_detection.py. Extracted so generation
+services don't each carry their own copy of the empirically-validated
+Gemini/OpenRouter SDK workarounds.
 """
 
 import json

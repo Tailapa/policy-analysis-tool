@@ -9,11 +9,8 @@ from app.routers import (
     admin,
     admin_uploads,
     auth,
-    compare,
     evolution,
-    governance,
     health,
-    intelligence,
     issues,
     ministries,
     items,
@@ -51,18 +48,10 @@ def create_app() -> FastAPI:
     app.include_router(ministries.router)
     app.include_router(pillars.router)
     app.include_router(stats.router)
-    app.include_router(compare.router)
     app.include_router(auth.router)
     app.include_router(admin.router)
     app.include_router(admin_uploads.router)
-    app.include_router(intelligence.item_intelligence_router)
-    app.include_router(intelligence.aggregate_router)
-    app.include_router(intelligence.admin_intelligence_router)
-    app.include_router(governance.item_governance_router)
-    app.include_router(governance.governance_aggregate_router)
-    app.include_router(governance.admin_governance_router)
     app.include_router(evolution.item_evolution_router)
-    app.include_router(evolution.evolution_router)
     app.include_router(evolution.admin_evolution_router)
 
     return app

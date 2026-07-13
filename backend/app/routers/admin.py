@@ -18,18 +18,17 @@ from app.schemas.ministry import (
 )
 from app.schemas.pillar import PillarCreate, PillarOut
 from app.schemas.upload import ManualItemCreate
+from app.services.draft_detection import verify_draft_status
 from app.services.geo_tagger import parse_geography_string
-from app.services.lookups import get_latest_issue_id, get_pillar_names
+from app.services.lookups import get_latest_issue_id, get_ministry_map, get_pillar_names
 from app.services.ministry_resolver import resolve_ministry
-from app.services.policy_governance import generate_governance_for_item
-from app.services.policy_intelligence import generate_intelligence_for_item
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
-class BulkGenerateOut(BaseModel):
-    queued_intelligence: int
-    queued_governance: int
+class UpdateItemMinistriesIn(BaseModel):
+    ministry_id: str
+    additional_ministry_ids: list[str] = []
 
 
 @router.get("/ministries", response_model=list[MinistryOut])
@@ -38,12 +37,12 @@ async def admin_list_ministries(
     _admin: dict = Depends(get_current_admin),
 ):
     docs = [doc async for doc in db[COLLECTIONS["ministries"]].find().sort("name", 1)]
-    counts = {
-        row["_id"]: row["count"]
-        async for row in db[COLLECTIONS["policy_items"]].aggregate(
-            [{"$group": {"_id": "$ministry_id", "count": {"$sum": 1}}}]
-        )
-    }
+    pipeline = [
+        {"$project": {"all_ids": {"$concatArrays": [["$ministry_id"], {"$ifNull": ["$additional_ministry_ids", []]}]}}},
+        {"$unwind": "$all_ids"},
+        {"$group": {"_id": "$all_ids", "count": {"$sum": 1}}},
+    ]
+    counts = {row["_id"]: row["count"] async for row in db[COLLECTIONS["policy_items"]].aggregate(pipeline)}
     return [serialize_ministry(doc, counts.get(doc["_id"], 0)) for doc in docs]
 
 
@@ -97,47 +96,58 @@ async def delete_ministry(
         raise HTTPException(status_code=404, detail="Ministry not found")
 
 
-@router.post(
-    "/ministries/{ministry_id}/generate-intelligence", response_model=BulkGenerateOut, status_code=202
-)
-async def bulk_generate_ministry_intelligence(
-    ministry_id: str,
+@router.patch("/items/{item_id}/ministries", response_model=ItemOut)
+async def update_item_ministries(
+    item_id: str,
+    payload: UpdateItemMinistriesIn,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    _admin: dict = Depends(get_current_admin),
+):
+    """Lets an admin link an existing item to an additional ministry/
+    regulatory body (or change its primary one) after the fact — the item
+    then shows up under every linked entity's directory/tab."""
+    oid = parse_object_id(item_id, "Item not found")
+    primary_oid = parse_object_id(payload.ministry_id, "Ministry not found")
+    additional_oids = [parse_object_id(mid, "Ministry not found") for mid in payload.additional_ministry_ids]
+
+    all_oids = [primary_oid] + additional_oids
+    found = await db[COLLECTIONS["ministries"]].count_documents({"_id": {"$in": all_oids}})
+    if found != len(set(str(o) for o in all_oids)):
+        raise HTTPException(status_code=404, detail="One or more ministries/regulatory bodies not found")
+
+    result = await db[COLLECTIONS["policy_items"]].update_one(
+        {"_id": oid},
+        {"$set": {"ministry_id": primary_oid, "additional_ministry_ids": additional_oids}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    doc = await db[COLLECTIONS["policy_items"]].find_one({"_id": oid})
+    ministry_map = await get_ministry_map(db)
+    return serialize_item(doc, ministry_map)
+
+
+@router.post("/items/{item_id}/verify-draft", status_code=202)
+async def trigger_draft_verification(
+    item_id: str,
     background_tasks: BackgroundTasks,
     db: AsyncIOMotorDatabase = Depends(get_db),
     _admin: dict = Depends(get_current_admin),
 ):
-    """Queues policy Intelligence and/or Governance generation for every item
-    in this ministry that's missing one or the other — a one-click way to
-    fill in a ministry's coverage rather than triggering each item
-    individually. Only queues the pipeline(s) actually missing per item, and
-    never re-queues items that already have both (no force option here —
-    use the per-item admin endpoints for an explicit regeneration)."""
-    oid = parse_object_id(ministry_id, "Ministry not found")
-    ministry_doc = await db[COLLECTIONS["ministries"]].find_one({"_id": oid}, {"_id": 1})
-    if not ministry_doc:
-        raise HTTPException(status_code=404, detail="Ministry not found")
+    """Manual re-run of the Gemini+Serper draft cross-check — the PDF-derived
+    is_draft flag itself is never touched here, only draft_verification."""
+    oid = parse_object_id(item_id, "Item not found")
+    doc = await db[COLLECTIONS["policy_items"]].find_one({"_id": oid}, {"_id": 1})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Item not found")
 
-    cursor = db[COLLECTIONS["policy_items"]].find(
-        {"ministry_id": oid, "$or": [{"intelligence": None}, {"governance": None}]},
-        {"_id": 1, "intelligence": 1, "governance": 1},
-    )
-    queued_intelligence = 0
-    queued_governance = 0
-    async for doc in cursor:
-        if doc.get("intelligence") is None:
-            background_tasks.add_task(generate_intelligence_for_item, db, doc["_id"])
-            queued_intelligence += 1
-        if doc.get("governance") is None:
-            background_tasks.add_task(generate_governance_for_item, db, doc["_id"])
-            queued_governance += 1
-
-    return BulkGenerateOut(queued_intelligence=queued_intelligence, queued_governance=queued_governance)
+    background_tasks.add_task(verify_draft_status, db, oid, True)
+    return {"status": "queued"}
 
 
 @router.post("/items", response_model=ItemOut, status_code=201)
 async def create_manual_item(
     payload: ManualItemCreate,
-    background_tasks: BackgroundTasks,
     db: AsyncIOMotorDatabase = Depends(get_db),
     _admin: dict = Depends(get_current_admin),
 ):
@@ -191,11 +201,9 @@ async def create_manual_item(
     }
     result = await db[COLLECTIONS["policy_items"]].insert_one(doc)
     doc["_id"] = result.inserted_id
-    background_tasks.add_task(generate_intelligence_for_item, db, doc["_id"])
-    background_tasks.add_task(generate_governance_for_item, db, doc["_id"])
 
-    ministry_doc = await db[COLLECTIONS["ministries"]].find_one({"_id": ministry_id})
-    return serialize_item(doc, ministry_doc["name"] if ministry_doc else payload.ministry)
+    ministry_map = await get_ministry_map(db)
+    return serialize_item(doc, ministry_map)
 
 
 @router.get("/pillars", response_model=list[PillarOut])

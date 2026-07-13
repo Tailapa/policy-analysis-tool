@@ -8,6 +8,16 @@ async def get_ministry_name_map(db: AsyncIOMotorDatabase) -> dict[str, str]:
     return {str(doc["_id"]): doc["name"] async for doc in cursor}
 
 
+async def get_ministry_map(db: AsyncIOMotorDatabase) -> dict[str, dict]:
+    """id -> {"name", "category"}, used to build ItemOut.linkedMinistries for
+    items linked to more than one ministry/regulatory body."""
+    cursor = db[COLLECTIONS["ministries"]].find({}, {"name": 1, "category": 1})
+    return {
+        str(doc["_id"]): {"name": doc["name"], "category": doc.get("category") or "ministry"}
+        async for doc in cursor
+    }
+
+
 async def get_latest_issue_id(db: AsyncIOMotorDatabase) -> str | None:
     doc = await db[COLLECTIONS["issues"]].find_one(sort=[("published_at", -1)])
     return str(doc["_id"]) if doc else None
