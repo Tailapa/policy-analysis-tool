@@ -26,12 +26,13 @@ export default function Masthead({
   onLoginClick,
   onLogout,
 }: MastheadProps) {
-  const tabs: ActiveTab[] = ['Overview', 'Ministries', 'RegulatoryBodies', 'Drafts'];
+  const tabs: ActiveTab[] = ['Overview', 'Ministries', 'RegulatoryBodies', 'Drafts', 'Reports'];
   const TAB_LABELS: Record<ActiveTab, string> = {
     Overview: 'Overview',
     Ministries: 'Ministries',
     RegulatoryBodies: 'Regulatory Bodies',
     Drafts: 'Drafts',
+    Reports: 'Reports',
     Login: 'Login',
     Upload: 'Upload',
   };

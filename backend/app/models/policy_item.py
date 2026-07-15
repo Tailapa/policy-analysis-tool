@@ -84,8 +84,8 @@ class PolicyItem(BaseModel):
     description: str
     pillar: str
     subtype: Subtype
-    status: Status
-    impact_level: ImpactLevel
+    status: Optional[Status] = None
+    impact_level: Optional[ImpactLevel] = None
     ministry_id: str
     additional_ministry_ids: list[str] = Field(default_factory=list)
     sources: list[SourceModel] = Field(default_factory=list)
@@ -99,6 +99,7 @@ class PolicyItem(BaseModel):
     evolution: Optional[PolicyEvolutionModel] = None
     is_draft: bool = False
     draft_verification: Optional[DraftVerificationModel] = None
+    financial_outlay: Optional[str] = None
     parsing_meta: ParsingMeta = Field(default_factory=ParsingMeta)
     created_at: datetime
     updated_at: datetime

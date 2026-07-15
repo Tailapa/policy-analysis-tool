@@ -17,8 +17,9 @@ async def test_list_items_shape_matches_frontend(client, seeded_item):
 
     item = body["items"][0]
     assert set(item.keys()) == {
-        "id", "title", "description", "ministry", "theme", "status",
-        "impact", "date", "dateValue", "geography", "sources", "tags",
+        "id", "title", "description", "ministry", "linkedMinistries", "theme",
+        "subtype", "status", "impact", "date", "dateValue", "geography",
+        "sources", "tags", "isDraft", "draftVerification", "financialOutlay",
     }
     assert item["ministry"] == "Union Cabinet"
     assert item["theme"] == "Economic Growth"

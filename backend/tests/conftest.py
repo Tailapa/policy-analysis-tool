@@ -1,13 +1,34 @@
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from mongomock import Collection as MongoMockCollection
+from mongomock import Database as MongoMockDatabase
 from mongomock_motor import AsyncMongoMockClient
+from pymongo.synchronous.collection import Collection as PyMongoCollection
+from pymongo.synchronous.database import Database as PyMongoDatabase
 
 from app.core.db import get_db
 from app.core.security import hash_password
 from app.main import app
+
+
+@pytest.fixture(autouse=True)
+def _gridfs_mock_compat():
+    """motor's AsyncIOMotorGridFSBucket type-checks its db/collection args
+    against real pymongo classes internally — mongomock's fake equivalents
+    aren't subclasses, so upload tests (which store the source file in
+    GridFS) fail that check. mongomock_motor ships enabled_gridfs_integration()
+    for exactly this, but it patches gridfs.Database, a location that no
+    longer exists in this pymongo version (moved to
+    gridfs.synchronous.grid_file.Database) — so this patches the current
+    location directly instead."""
+    with patch("gridfs.synchronous.grid_file.Database", (PyMongoDatabase, MongoMockDatabase)), patch(
+        "gridfs.synchronous.grid_file.Collection", (PyMongoCollection, MongoMockCollection)
+    ):
+        yield
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 ISSUE_I_PDF = FIXTURES_DIR / "sample_issue_1_may_1_15_2026.pdf"

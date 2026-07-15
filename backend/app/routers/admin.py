@@ -20,7 +20,7 @@ from app.schemas.pillar import PillarCreate, PillarOut
 from app.schemas.upload import ManualItemCreate
 from app.services.draft_detection import verify_draft_status
 from app.services.geo_tagger import parse_geography_string
-from app.services.lookups import get_latest_issue_id, get_ministry_map, get_pillar_names
+from app.services.lookups import get_item_counts_by_ministry, get_latest_issue_id, get_ministry_map, get_pillar_names
 from app.services.ministry_resolver import resolve_ministry
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -37,12 +37,7 @@ async def admin_list_ministries(
     _admin: dict = Depends(get_current_admin),
 ):
     docs = [doc async for doc in db[COLLECTIONS["ministries"]].find().sort("name", 1)]
-    pipeline = [
-        {"$project": {"all_ids": {"$concatArrays": [["$ministry_id"], {"$ifNull": ["$additional_ministry_ids", []]}]}}},
-        {"$unwind": "$all_ids"},
-        {"$group": {"_id": "$all_ids", "count": {"$sum": 1}}},
-    ]
-    counts = {row["_id"]: row["count"] async for row in db[COLLECTIONS["policy_items"]].aggregate(pipeline)}
+    counts = await get_item_counts_by_ministry(db)
     return [serialize_ministry(doc, counts.get(doc["_id"], 0)) for doc in docs]
 
 

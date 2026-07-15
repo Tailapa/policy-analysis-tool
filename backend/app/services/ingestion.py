@@ -4,8 +4,10 @@ from typing import Optional
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.db import COLLECTIONS
-from app.services import docx_parser, pdf_parser
+from app.services import pdf_parser
+from app.services.docx_converter import ConversionError, convert_docx_to_pdf
 from app.services.draft_detection import detect_draft_from_text
+from app.services.financial_extractor import extract_financial_outlay
 from app.services.geo_tagger import tag_geography
 from app.services.issue_meta import IssueMetaError, extract_issue_meta
 from app.services.ministry_resolver import find_additional_regulatory_body_links, resolve_ministry
@@ -18,15 +20,25 @@ class IngestionError(Exception):
     cover page, malformed chunk) for the router to turn into a 422."""
 
 
-def _extract_raw_text_and_links(filename: str, file_bytes: bytes) -> tuple[str, list[tuple[str, str]]]:
+async def _normalize_to_pdf(filename: str, file_bytes: bytes) -> tuple[str, bytes]:
+    """A .docx upload is converted to .pdf *before* anything else, so it
+    then flows through the exact same parsing (and storage) pipeline as a
+    native PDF upload. This isn't a default/convenience choice — direct
+    .docx text extraction (python-docx's paragraph.text) was tested against
+    5 real uploaded issue .docx files and failed to chunk *all 5*: Word's
+    numbered-list markers are applied by Word's own numbering engine, not
+    stored as literal text, so report_chunker.py's item-marker regex never
+    finds them. See docx_converter.py's docstring for the full comparison."""
     lower = filename.lower()
     if lower.endswith(".pdf"):
-        return pdf_parser.extract_text_and_source_links(file_bytes)
+        return filename, file_bytes
     if lower.endswith(".docx"):
-        # python-docx doesn't expose hyperlink runs as easily as PyMuPDF's
-        # link annotations — DOCX uploads fall back to the curated
-        # org->homepage lookup in source_link_matcher.py for every citation.
-        return docx_parser.extract_text(file_bytes), []
+        try:
+            pdf_bytes = await convert_docx_to_pdf(file_bytes)
+        except ConversionError as e:
+            raise IngestionError(str(e))
+        pdf_filename = filename.rsplit(".", 1)[0] + ".pdf"
+        return pdf_filename, pdf_bytes
     raise IngestionError(f"Unsupported file type: {filename} (expected .pdf or .docx)")
 
 
@@ -39,8 +51,15 @@ async def ingest_report(
     period_start=None,
     period_end=None,
     pdf_url: str = "",
-) -> tuple[dict, list[dict]]:
-    raw_text, ordered_links = _extract_raw_text_and_links(filename, file_bytes)
+) -> tuple[dict, list[dict], bytes]:
+    """Returns (issue_doc, item_docs, pdf_bytes) — pdf_bytes (the original
+    upload, or its converted-from-.docx form) is handed back rather than
+    stored inline here, so the caller can persist it to GridFS as a
+    decoupled background task (see routers/admin_uploads.py) the same way
+    embeddings/evolution/draft-verification already are: never block or
+    risk the publish response on a secondary step."""
+    pdf_filename, pdf_bytes = await _normalize_to_pdf(filename, file_bytes)
+    raw_text, ordered_links = pdf_parser.extract_text_and_source_links(pdf_bytes)
 
     if not (label and period_start and period_end):
         try:
@@ -62,6 +81,8 @@ async def ingest_report(
         "period_start": datetime(period_start.year, period_start.month, period_start.day),
         "period_end": datetime(period_end.year, period_end.month, period_end.day),
         "pdf_url": pdf_url,
+        "pdf_file_id": None,
+        "pdf_filename": pdf_filename,
         "executive_summary": "",
         "contributors": [],
         "published_at": now,
@@ -74,11 +95,15 @@ async def ingest_report(
     for parsed in parsed_items:
         ministry_id, match_score = await resolve_ministry(db, parsed.ministry_raw, ministry_match_threshold)
         scope, states, geo_terms = tag_geography(f"{parsed.title} {parsed.description}")
-        sources, link_ptr = match_source_links(parsed.source_label, ordered_links, link_ptr)
+        if parsed.source_label is None:
+            sources: list[dict] = []
+        else:
+            sources, link_ptr = match_source_links(parsed.source_label, ordered_links, link_ptr)
         additional_ministry_ids = await find_additional_regulatory_body_links(
             db, f"{parsed.title} {parsed.description}", ministry_id
         )
         is_draft = detect_draft_from_text(parsed.title, parsed.description)
+        financial_outlay = extract_financial_outlay(f"{parsed.title} {parsed.description}")
 
         doc = {
             "title": parsed.title,
@@ -99,6 +124,7 @@ async def ingest_report(
             "embedding": None,
             "is_draft": is_draft,
             "draft_verification": None,
+            "financial_outlay": financial_outlay,
             "parsing_meta": {"ministry_match_score": match_score, "geo_match_terms": geo_terms},
             "created_at": now,
             "updated_at": now,
@@ -107,4 +133,4 @@ async def ingest_report(
         doc["_id"] = result.inserted_id
         item_docs.append(doc)
 
-    return issue_doc, item_docs
+    return issue_doc, item_docs, pdf_bytes

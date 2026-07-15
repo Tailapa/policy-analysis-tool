@@ -4,6 +4,8 @@ export type Status = 'Initiated' | 'Completed' | 'Announced';
 
 export type Impact = 'High' | 'Medium' | 'Low';
 
+export type Subtype = 'Policy Update' | 'Announcement';
+
 export interface Source {
   label: string;
   url: string;
@@ -31,8 +33,9 @@ export interface Item {
   ministry: string;
   linkedMinistries: MinistryRef[];
   theme: Pillar;
-  status: Status;
-  impact: Impact;
+  subtype: Subtype;
+  status: Status | null;
+  impact: Impact | null;
   date: string; // e.g. '16 Jun', '17 Jun', etc.
   dateValue: number; // For sorting and timeline (day in June 2026, e.g. 16, 17...)
   geography: string; // 'national' or 'state: StateName'
@@ -40,6 +43,7 @@ export interface Item {
   tags: string[];
   isDraft: boolean;
   draftVerification: DraftVerification | null;
+  financialOutlay: string | null;
 }
 
 export interface Ministry {
@@ -53,7 +57,7 @@ export interface Ministry {
 
 export type TextSize = 'sm' | 'md' | 'lg';
 
-export type ActiveTab = 'Overview' | 'Ministries' | 'RegulatoryBodies' | 'Drafts' | 'Login' | 'Upload';
+export type ActiveTab = 'Overview' | 'Ministries' | 'RegulatoryBodies' | 'Drafts' | 'Reports' | 'Login' | 'Upload';
 
 export interface PillarStat {
   pillar: string;
@@ -65,6 +69,8 @@ export interface Issue {
   label: string;
   dateRange: string;
   itemsCount: number;
+  hasPdf: boolean;
+  periodStart: string; // ISO date, e.g. '2026-05-16'
 }
 
 // --- Policy Evolution (PDF-only, per-item) --------------------------------

@@ -1,5 +1,8 @@
+import logging
 import re
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 PILLAR_HEADERS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"\bI\.\s+Economic Growth", re.IGNORECASE), "Economic Growth"),
@@ -11,15 +14,20 @@ PILLAR_HEADERS: list[tuple[re.Pattern, str]] = [
 ]
 
 SUBTYPE_HEADERS: list[tuple[re.Pattern, str]] = [
-    (re.compile(r"\bA\.\s+Policy Updates", re.IGNORECASE), "Policy Update"),
-    (re.compile(r"\bB\.\s+Announcements", re.IGNORECASE), "Announcement"),
+    # Plural is the norm ("Policy Updates" / "Announcements"), but at least
+    # one real source document has a singular section heading ("A.  Policy
+    # Update") for a pillar with only one entry — tolerate both so the
+    # item doesn't silently inherit the wrong subtype from an earlier
+    # section's trailing header.
+    (re.compile(r"\bA\.\s+Policy Updates?", re.IGNORECASE), "Policy Update"),
+    (re.compile(r"\bB\.\s+Announcements?", re.IGNORECASE), "Announcement"),
 ]
 
 ITEM_MARKER_RE = re.compile(r"(?:\n|\A)[ \t]*(\d{1,2})\.[ \t]+")
 MIN_DESCRIPTION_GAP = 40
 
 ANCHOR_RE = re.compile(
-    r"Status:\s*(?P<status>Initiated|Completed|Announced|Ongoing)"
+    r"Status:\s*(?P<status>Initiated|Completed|Announced|Ongoing|Implemented|Approved|Notified|Proposed|Introduced|Launched)"
     r"(?:\s*\|\s*Impact(?:\s*Level)?:\s*(?P<impact>High|Medium|Low))?"
     r"\s*\|\s*Source:\s*(?P<source1>[^\n]+)"
     r"|"
@@ -42,7 +50,15 @@ STATUS_MAP = {
     "completed": "Completed",
     "announced": "Announced",
     "ongoing": "Initiated",
+    "implemented": "Completed",
+    "approved": "Initiated",
+    "notified": "Completed",
+    "proposed": "Announced",
+    "introduced": "Initiated",
+    "launched": "Initiated",
 }
+
+TOC_HEADING_RE = re.compile(r"Table\s+Of\s+Contents", re.IGNORECASE)
 
 TITLE_MINISTRY_SPLIT_RE = re.compile(r"\s?[-–—]\s(?!.*\s?[-–—]\s)")
 PAGE_NUMBER_LINE_RE = re.compile(r"^\s*\d{1,3}\s*$", re.MULTILINE)
@@ -72,9 +88,9 @@ class ParsedItem:
     ministry_raw: str
     pillar: str
     subtype: str
-    status: str
-    impact_level: str
-    source_label: str
+    status: str | None
+    impact_level: str | None
+    source_label: str | None
     description: str
 
 
@@ -90,6 +106,20 @@ def _normalize(text: str) -> str:
 
 def _collapse_whitespace(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
+
+
+def _truncate_at_duplicate_copy(text: str) -> str:
+    """Several real-world source documents bundle a second, re-exported
+    "Print Ready Version" copy of the same issue directly after the first
+    one in the same file, instead of as a separate upload — same items,
+    renumbered and re-lettered. Only the first copy is genuine; chunking
+    the second copy too would double-publish every item. A second "Table
+    Of Contents" heading reliably marks where the duplicate copy begins,
+    so truncate there."""
+    matches = list(TOC_HEADING_RE.finditer(text))
+    if len(matches) >= 2:
+        return text[: matches[1].start()]
+    return text
 
 
 def _extend_wrapped_source(text: str, source_end: int) -> tuple[str, int]:
@@ -143,6 +173,7 @@ def _split_title_ministry(raw_title: str) -> tuple[str, str]:
 
 def chunk_report(raw_text: str) -> list[ParsedItem]:
     text = _normalize(raw_text)
+    text = _truncate_at_duplicate_copy(text)
 
     pillar_headers = sorted(
         (m.start(), pillar) for pattern, pillar in PILLAR_HEADERS for m in pattern.finditer(text)
@@ -211,23 +242,58 @@ def chunk_report(raw_text: str) -> list[ParsedItem]:
             (a for a in anchors if marker_end <= a.start() < next_marker_start),
             None,
         )
-        if anchor is None:
-            snippet = _collapse_whitespace(text[marker_start:marker_end + 80])
-            raise ChunkingError(
-                f"Item marker at position {marker_start} ('{snippet}...') has no Status | Impact "
-                "Level | Source anchor line before the next item — refusing to publish a malformed item."
-            )
-
-        raw_title = text[marker_end:anchor.start()]
-        title, ministry_raw = _split_title_ministry(raw_title)
 
         pillar = _nearest_preceding(real_pillar_headers, marker_start)
         subtype = _nearest_preceding(real_subtype_headers, marker_start)
         if pillar is None or subtype is None:
-            raise ChunkingError(
-                f"Item '{title[:60]}' has no preceding pillar/subtype section header — document structure "
-                "doesn't match the expected Roman-numeral / A.-B. layout."
+            snippet = _collapse_whitespace(text[marker_start:marker_end + 80])
+            logger.warning(
+                "Skipping item marker at position %d ('%s...') — no preceding pillar/subtype section "
+                "header, document structure doesn't match the expected Roman-numeral / A.-B. layout.",
+                marker_start,
+                snippet,
             )
+            continue
+
+        if anchor is None:
+            # Not every numbered marker in the body region carries a genuine
+            # Status/Impact Level/Source anchor line — e.g. a numbered list
+            # inside a "bills pending" table shares the same "N. " marker
+            # shape but was never meant to have one. Publish it anyway with
+            # null status/impact/source rather than dropping the content —
+            # boundary_positions already includes every marker, so the
+            # surrounding real items are still bounded correctly.
+            body_end = next_boundary_after(marker_start)
+            segment = text[marker_end:body_end]
+            newline_pos = segment.find("\n")
+            if newline_pos == -1:
+                raw_title, raw_description = segment, ""
+            else:
+                raw_title, raw_description = segment[:newline_pos], segment[newline_pos + 1:]
+
+            title, ministry_raw = _split_title_ministry(raw_title)
+            logger.warning(
+                "Publishing item '%s' at position %d with null status/impact/source — no anchor "
+                "line found before the next item.",
+                title[:60],
+                marker_start,
+            )
+            items.append(
+                ParsedItem(
+                    title=title,
+                    ministry_raw=ministry_raw,
+                    pillar=pillar,
+                    subtype=subtype,
+                    status=None,
+                    impact_level=None,
+                    source_label=None,
+                    description=_collapse_whitespace(raw_description),
+                )
+            )
+            continue
+
+        raw_title = text[marker_end:anchor.start()]
+        title, ministry_raw = _split_title_ministry(raw_title)
 
         if anchor.group("status"):
             status = STATUS_MAP[anchor.group("status").lower()]
@@ -255,5 +321,8 @@ def chunk_report(raw_text: str) -> list[ParsedItem]:
                 description=description,
             )
         )
+
+    if not items:
+        raise ChunkingError("No well-formed items (with a Status | Impact Level | Source anchor) were found")
 
     return items

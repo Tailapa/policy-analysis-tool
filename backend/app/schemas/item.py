@@ -7,6 +7,7 @@ from app.schemas.common import format_item_date
 
 Status = Literal["Initiated", "Completed", "Announced"]
 Impact = Literal["High", "Medium", "Low"]
+Subtype = Literal["Policy Update", "Announcement"]
 
 
 class SourceOut(BaseModel):
@@ -36,8 +37,9 @@ class ItemOut(BaseModel):
     ministry: str
     linkedMinistries: list[MinistryRefOut]
     theme: str
-    status: Status
-    impact: Impact
+    subtype: Subtype
+    status: Optional[Status] = None
+    impact: Optional[Impact] = None
     date: str
     dateValue: int
     geography: str
@@ -45,6 +47,7 @@ class ItemOut(BaseModel):
     tags: list[str]
     isDraft: bool = False
     draftVerification: Optional[DraftVerificationOut] = None
+    financialOutlay: Optional[str] = None
 
 
 class PaginatedItems(BaseModel):
@@ -95,6 +98,7 @@ def serialize_item(doc: dict, ministry_map: dict[str, dict]) -> ItemOut:
         ministry=primary_name,
         linkedMinistries=linked_ministries,
         theme=doc["pillar"],
+        subtype=doc["subtype"],
         status=doc["status"],
         impact=doc["impact_level"],
         date=format_item_date(doc["item_date"]),
@@ -104,4 +108,5 @@ def serialize_item(doc: dict, ministry_map: dict[str, dict]) -> ItemOut:
         tags=doc.get("tags", []),
         isDraft=doc.get("is_draft", False),
         draftVerification=draft_verification,
+        financialOutlay=doc.get("financial_outlay"),
     )

@@ -4,6 +4,7 @@ import Masthead from './components/Masthead';
 import Overview from './components/Overview';
 import Ministries from './components/Ministries';
 import Drafts from './components/Drafts';
+import Reports from './components/Reports';
 import ItemDetail from './components/ItemDetail';
 import Login from './components/Login';
 import Upload from './components/Upload';
@@ -324,6 +325,10 @@ export default function App() {
                 setCurrentIssueId={setCurrentIssueId}
                 issues={issues}
               />
+            )}
+
+            {activeTab === 'Reports' && (
+              <Reports theme={theme} issues={issues} />
             )}
 
             {activeTab === 'Login' && (

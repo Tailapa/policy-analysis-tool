@@ -55,9 +55,11 @@ Produce an ordered policy evolution timeline for this theme:
 Mobility & Battery Storage", "Bullion Trade Regulation").
 
 2. stages: an ordered list (chronological, earliest first) of stages tracing this theme's genealogy, one \
-per dashboard item listed above. Each stage needs: label (short, e.g. "FAME Scheme (2015)"), year \
-(approximate year or range), description (1-2 sentences), source ("dashboard" in every case here), and \
-item_id set to that item's item_id exactly as given.
+per dashboard item listed above. Each stage needs: label (short, e.g. "FAME Scheme (2015)"), year (the \
+month and year, e.g. "Jan 2015" — use the dashboard item's own date above for dashboard-sourced stages; \
+fall back to a year-only or range, e.g. "2019-2022", only when a specific month genuinely isn't derivable), \
+description (1-2 sentences), source ("dashboard" in every case here), and item_id set to that item's \
+item_id exactly as given.
 
 3. synthesis: a ~120-150 word narrative tying the whole genealogy together — how the theme evolved across \
 these tracked items, what drove each transition, and where it's heading.

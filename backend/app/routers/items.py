@@ -1,15 +1,30 @@
+import io
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pydantic import BaseModel
 
 from app.core.db import COLLECTIONS, get_db
 from app.core.utils import parse_object_id
 from app.schemas.item import ItemOut, PaginatedItems, serialize_item
 from app.services.lookups import get_ministry_map
+from app.services.pdf_export import generate_item_pdf, generate_items_report_pdf
 
 router = APIRouter(prefix="/api/items", tags=["items"])
 states_router = APIRouter(prefix="/api/states", tags=["items"])
+
+
+class PdfReportRequest(BaseModel):
+    item_ids: list[str]
+    report_title: str
+    report_subtitle: Optional[str] = None
+
+
+def _pdf_filename(title: str) -> str:
+    safe = "".join(c if c.isalnum() or c in " -_" else "" for c in title).strip() or "report"
+    return f"{safe}.pdf"
 
 
 @router.get("", response_model=PaginatedItems)
@@ -72,6 +87,46 @@ async def get_item(item_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
 
     ministry_map = await get_ministry_map(db)
     return serialize_item(doc, ministry_map)
+
+
+@router.get("/{item_id}/pdf")
+async def download_item_pdf(item_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+    oid = parse_object_id(item_id, "Item not found")
+    doc = await db[COLLECTIONS["policy_items"]].find_one({"_id": oid})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    ministry_map = await get_ministry_map(db)
+    pdf_bytes = generate_item_pdf(doc, ministry_map)
+
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{_pdf_filename(doc["title"])}"'},
+    )
+
+
+@router.post("/pdf-report")
+async def download_items_report_pdf(payload: PdfReportRequest, db: AsyncIOMotorDatabase = Depends(get_db)):
+    oids = [parse_object_id(i, "Item not found") for i in payload.item_ids]
+    if not oids:
+        raise HTTPException(status_code=422, detail="No item_ids provided")
+
+    docs = [
+        doc
+        async for doc in db[COLLECTIONS["policy_items"]].find({"_id": {"$in": oids}}).sort("item_date", -1)
+    ]
+    if not docs:
+        raise HTTPException(status_code=404, detail="No matching items found")
+
+    ministry_map = await get_ministry_map(db)
+    pdf_bytes = generate_items_report_pdf(docs, ministry_map, payload.report_title, payload.report_subtitle)
+
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{_pdf_filename(payload.report_title)}"'},
+    )
 
 
 @states_router.get("/{state_code}/items", response_model=list[ItemOut])

@@ -100,16 +100,26 @@ export async function login(email: string, password: string): Promise<void> {
 }
 
 export interface IssueUploadResult {
-  issue_id: string;
-  issue_label: string;
+  filename: string;
+  success: boolean;
+  issue_id?: string;
+  issue_label?: string;
   items: Item[];
   item_count: number;
+  error?: string;
 }
 
-export async function uploadIssueFile(file: File): Promise<IssueUploadResult> {
+export interface BulkIssueUploadResult {
+  results: IssueUploadResult[];
+}
+
+// Accepts a mix of .pdf and .docx files in one batch — each is ingested as
+// its own issue; a failure on one file doesn't prevent the others from
+// publishing (see per-result `success`/`error`).
+export async function uploadIssueFiles(files: File[]): Promise<BulkIssueUploadResult> {
   const formData = new FormData();
-  formData.append('file', file);
-  return request<IssueUploadResult>('/api/admin/issues/upload', {
+  files.forEach((file) => formData.append('files', file));
+  return request<BulkIssueUploadResult>('/api/admin/issues/upload', {
     method: 'POST',
     body: formData,
   });
@@ -235,5 +245,67 @@ export async function fetchItemEvolution(itemId: string): Promise<ItemEvolutionS
 export async function triggerItemEvolutionGeneration(itemId: string, force = false): Promise<{ status: string }> {
   return request<{ status: string }>(`/api/admin/items/${itemId}/generate-evolution?force=${force}`, {
     method: 'POST',
+  });
+}
+
+// --- File downloads (issue PDFs, generated policy/report PDFs) -----------
+
+async function downloadFile(path: string, options: RequestInit = {}): Promise<void> {
+  const token = getToken();
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string> | undefined),
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      detail = body.detail || detail;
+    } catch {
+      // ignore, use statusText
+    }
+    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+  }
+
+  const blob = await res.blob();
+  const disposition = res.headers.get('Content-Disposition') || '';
+  const match = disposition.match(/filename="?([^"]+)"?/);
+  const filename = match ? match[1] : 'download';
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+export async function downloadIssuePdf(issueId: string): Promise<void> {
+  return downloadFile(`/api/issues/${issueId}/pdf`);
+}
+
+export async function downloadIssuesZip(issueIds: string[]): Promise<void> {
+  return downloadFile(`/api/issues/pdf/bulk?issue_ids=${issueIds.map(encodeURIComponent).join(',')}`);
+}
+
+export async function downloadItemPdf(itemId: string): Promise<void> {
+  return downloadFile(`/api/items/${itemId}/pdf`);
+}
+
+export async function downloadItemsReportPdf(
+  itemIds: string[],
+  reportTitle: string,
+  reportSubtitle?: string
+): Promise<void> {
+  return downloadFile('/api/items/pdf-report', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ item_ids: itemIds, report_title: reportTitle, report_subtitle: reportSubtitle }),
   });
 }

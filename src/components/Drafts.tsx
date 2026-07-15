@@ -1,6 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Item, Issue } from '../types';
 import { ALL_ISSUES_ID, getDefaultPillarMeta } from '../constants';
+import { downloadItemsReportPdf } from '../api';
+import Pagination from './Pagination';
 import {
   AlertTriangle,
   Search,
@@ -10,6 +12,8 @@ import {
   MapPin,
   Building2,
   Calendar,
+  Download,
+  Loader2,
 } from 'lucide-react';
 
 interface DraftsProps {
@@ -26,6 +30,8 @@ export default function Drafts({ onSelectItem, theme, items, currentIssueId, set
   const activeItems = items || [];
   const [searchQuery, setSearchQuery] = useState('');
   const [issueDropdownOpen, setIssueDropdownOpen] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const isAggregate = currentIssueId === ALL_ISSUES_ID;
   const activeIssueData = issues.find(issue => issue.id === currentIssueId);
@@ -43,6 +49,36 @@ export default function Drafts({ onSelectItem, theme, items, currentIssueId, set
       item.ministry.toLowerCase().includes(query)
     );
   }, [activeItems, searchQuery]);
+
+  const DRAFTS_PAGE_SIZE = 6;
+  const [draftsPage, setDraftsPage] = useState(1);
+
+  useEffect(() => {
+    setDraftsPage(1);
+  }, [searchQuery, activeItems]);
+
+  const draftsTotalPages = Math.max(1, Math.ceil(draftItems.length / DRAFTS_PAGE_SIZE));
+  const paginatedDraftItems = useMemo(() => {
+    const start = (draftsPage - 1) * DRAFTS_PAGE_SIZE;
+    return draftItems.slice(start, start + DRAFTS_PAGE_SIZE);
+  }, [draftItems, draftsPage]);
+
+  const handleDownloadPdf = async () => {
+    if (draftItems.length === 0) return;
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      await downloadItemsReportPdf(
+        draftItems.map(i => i.id),
+        'Draft Policies',
+        `${issueBadgeLabel} — per source PDF`
+      );
+    } catch (err: any) {
+      setDownloadError(err.message || 'Failed to download PDF');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -119,7 +155,24 @@ export default function Drafts({ onSelectItem, theme, items, currentIssueId, set
           </div>
         </div>
 
-        {/* Search */}
+        {/* Download + Search */}
+        <div className="flex items-center gap-3 shrink-0 flex-wrap justify-end">
+          {downloadError && <span className="text-xs font-bold text-rose-500">{downloadError}</span>}
+          <button
+            onClick={handleDownloadPdf}
+            disabled={downloading || draftItems.length === 0}
+            title={draftItems.length === 0 ? 'No draft policies to export' : undefined}
+            className={`px-4 py-2.5 rounded-full text-xs font-bold flex items-center gap-2 border shadow-sm transition-all cursor-pointer ${
+              downloading || draftItems.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
+            } ${
+              isDark
+                ? 'bg-zinc-800 border-zinc-700 text-zinc-200 hover:bg-zinc-700'
+                : 'bg-white border-zinc-200 text-zinc-800 hover:bg-zinc-50'
+            }`}
+          >
+            {downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+            <span>Download PDF</span>
+          </button>
         <div className="relative w-full md:w-80 shrink-0">
           <input
             type="text"
@@ -139,6 +192,7 @@ export default function Drafts({ onSelectItem, theme, items, currentIssueId, set
             </button>
           )}
         </div>
+        </div>
       </div>
 
       {draftItems.length === 0 ? (
@@ -152,8 +206,9 @@ export default function Drafts({ onSelectItem, theme, items, currentIssueId, set
           </p>
         </div>
       ) : (
+        <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {draftItems.map((item) => {
+          {paginatedDraftItems.map((item) => {
             const meta = defaultPillarMeta;
             const isState = item.geography.startsWith('state:');
             const stateName = isState ? item.geography.replace('state:', '').trim() : '';
@@ -218,6 +273,14 @@ export default function Drafts({ onSelectItem, theme, items, currentIssueId, set
               </div>
             );
           })}
+        </div>
+
+        <Pagination
+          currentPage={draftsPage}
+          totalPages={draftsTotalPages}
+          onPageChange={setDraftsPage}
+          theme={theme}
+        />
         </div>
       )}
     </div>

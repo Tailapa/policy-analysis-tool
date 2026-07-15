@@ -1,10 +1,67 @@
 import fitz
 
+# A "line" is only merged with the pending group when their Y-ranges overlap
+# by more than this fraction of the shorter line's height — chosen loosely
+# since same-line runs from LibreOffice-exported PDFs share (near-)identical
+# bboxes, while genuinely different lines don't overlap in Y at all.
+_LINE_OVERLAP_THRESHOLD = 0.5
+
+
+def _reconstruct_page_text(page) -> str:
+    """pymupdf's plain get_text() joins spans into "lines" using its own
+    internal line-detection, which is usually fine — except LibreOffice's
+    PDF export apparently gives each differently-formatted run (bold labels,
+    hyperlinked spans, plain text) within what's visually one line a
+    slightly different internal grouping, causing get_text() to insert
+    spurious newlines mid-line (e.g. splitting "Status: Completed | Impact
+    Level: High | Source: X" into 5+ separate lines). This reconstructs
+    lines directly from get_text("dict")'s per-line bboxes instead, merging
+    lines whose Y-ranges substantially overlap (i.e. actually the same
+    visual line) and joining them left-to-right by X position.
+
+    Verified against both LibreOffice-converted .docx uploads (fixes
+    mid-line splits without needing report_chunker.py changes) and the
+    original native-PDF fixtures (produces the same chunked item counts as
+    before — no regression)."""
+    d = page.get_text("dict")
+    out_lines: list[str] = []
+
+    for block in d["blocks"]:
+        if "lines" not in block:
+            continue
+        pending: list[tuple[float, float, float, str]] = []  # (y0, y1, x0, text)
+        for line in block["lines"]:
+            y0, y1 = line["bbox"][1], line["bbox"][3]
+            text = "".join(span["text"] for span in line["spans"]).strip()
+            if not text:
+                continue
+            x0 = line["bbox"][0]
+
+            same_line = False
+            if pending:
+                py0, py1 = pending[0][0], pending[0][1]
+                overlap = min(y1, py1) - max(y0, py0)
+                height = min(y1 - y0, py1 - py0)
+                same_line = height > 0 and overlap / height > _LINE_OVERLAP_THRESHOLD
+
+            if same_line:
+                pending.append((y0, y1, x0, text))
+            else:
+                if pending:
+                    pending.sort(key=lambda t: t[2])
+                    out_lines.append(" ".join(t[3] for t in pending))
+                pending = [(y0, y1, x0, text)]
+        if pending:
+            pending.sort(key=lambda t: t[2])
+            out_lines.append(" ".join(t[3] for t in pending))
+
+    return "\n".join(out_lines)
+
 
 def extract_text(file_bytes: bytes) -> str:
     doc = fitz.open(stream=file_bytes, filetype="pdf")
     try:
-        return "\n".join(page.get_text() for page in doc)
+        return "\n".join(_reconstruct_page_text(page) for page in doc)
     finally:
         doc.close()
 
@@ -34,7 +91,7 @@ def extract_text_and_source_links(file_bytes: bytes) -> tuple[str, list[tuple[st
         ordered_links: list[tuple[str, str]] = []
 
         for page in doc:
-            text = page.get_text()
+            text = _reconstruct_page_text(page)
             page_texts.append(text)
             if "Status:" not in text and "Source:" not in text:
                 continue

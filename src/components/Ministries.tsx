@@ -1,6 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Ministry, MinistryCategory, Item, Pillar, Status, Impact, Issue } from '../types';
 import { ALL_ISSUES_ID, getDefaultPillarMeta } from '../constants';
+import { downloadItemsReportPdf } from '../api';
+import Pagination from './Pagination';
 import {
   Building2,
   Coins,
@@ -45,7 +47,9 @@ import {
   X,
   ExternalLink,
   MapPin,
-  Calendar
+  Calendar,
+  Download,
+  Loader2
 } from 'lucide-react';
 
 interface MinistriesProps {
@@ -80,6 +84,11 @@ export default function Ministries({
   const isDark = theme === 'dark';
   const activeItems = items || [];
   const [searchQuery, setSearchQuery] = useState('');
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  const DIRECTORY_PAGE_SIZE = 9;
+  const [directoryPage, setDirectoryPage] = useState(1);
 
   // Scoped filters inside ministry detail
   const [selectedTheme, setSelectedTheme] = useState<Pillar | undefined>(undefined);
@@ -170,6 +179,22 @@ export default function Ministries({
     );
   }, [searchQuery, activeItems, ministries, category]);
 
+  useEffect(() => {
+    setDirectoryPage(1);
+  }, [searchQuery, category, activeItems]);
+
+  // Pagination only applies to Regulatory Bodies — the Ministries tab always
+  // shows its full list on a single page.
+  const isPaginated = category === 'regulatory_body';
+  const directoryTotalPages = isPaginated
+    ? Math.max(1, Math.ceil(filteredMinistries.length / DIRECTORY_PAGE_SIZE))
+    : 1;
+  const paginatedMinistries = useMemo(() => {
+    if (!isPaginated) return filteredMinistries;
+    const start = (directoryPage - 1) * DIRECTORY_PAGE_SIZE;
+    return filteredMinistries.slice(start, start + DIRECTORY_PAGE_SIZE);
+  }, [filteredMinistries, directoryPage, isPaginated]);
+
   // 2. Filtered list of items inside selected ministry
   const scopedItems = useMemo(() => {
     if (!selectedMinistry) return [];
@@ -192,6 +217,23 @@ export default function Ministries({
   const activeMinistryData = useMemo(() => {
     return ministries.find(m => m.name === selectedMinistry);
   }, [selectedMinistry, ministries]);
+
+  const handleDownloadPdf = async () => {
+    if (!selectedMinistry || scopedItems.length === 0) return;
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      await downloadItemsReportPdf(
+        scopedItems.map(i => i.id),
+        selectedMinistry,
+        `${category === 'regulatory_body' ? 'Regulatory Body' : 'Ministry'} report — ${issueBadgeLabel}`
+      );
+    } catch (err: any) {
+      setDownloadError(err.message || 'Failed to download PDF');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const handleResetInnerFilters = () => {
     setSelectedTheme(undefined);
@@ -301,7 +343,7 @@ export default function Ministries({
 
           {/* Ministries Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredMinistries.map((ministry) => {
+            {paginatedMinistries.map((ministry) => {
               const IconComp = iconMap[ministry.icon] || Building2;
               return (
                 <div
@@ -346,6 +388,13 @@ export default function Ministries({
               );
             })}
           </div>
+
+          <Pagination
+            currentPage={directoryPage}
+            totalPages={directoryTotalPages}
+            onPageChange={setDirectoryPage}
+            theme={theme}
+          />
         </div>
       ) : (
         // ================= DETAIL STATE (DRILLDOWN) =================
@@ -384,6 +433,7 @@ export default function Ministries({
             </div>
 
             <div className="flex items-center gap-3 flex-wrap justify-end">
+              {downloadError && <span className="text-xs font-bold text-rose-500">{downloadError}</span>}
               <span className={`text-xs font-bold px-4 py-2 rounded-full border ${
                 isDark
                   ? 'text-indigo-300 bg-indigo-950/40 border-indigo-900/40'
@@ -391,6 +441,21 @@ export default function Ministries({
               }`}>
                 {activeItems.filter(item => (item.linkedMinistries || []).some(lm => lm.name === selectedMinistry)).length} active updates
               </span>
+              <button
+                onClick={handleDownloadPdf}
+                disabled={downloading || scopedItems.length === 0}
+                title={scopedItems.length === 0 ? 'No items to export' : undefined}
+                className={`px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 border shadow-sm transition-all cursor-pointer ${
+                  downloading || scopedItems.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
+                } ${
+                  isDark
+                    ? 'bg-zinc-800 border-zinc-700 text-zinc-200 hover:bg-zinc-700'
+                    : 'bg-white border-zinc-200 text-zinc-800 hover:bg-zinc-50'
+                }`}
+              >
+                {downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                <span>Download PDF</span>
+              </button>
             </div>
           </div>
 

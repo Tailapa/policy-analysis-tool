@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Item } from '../types';
-import { Building2, MapPin, ExternalLink, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { Building2, MapPin, ExternalLink, ArrowLeft, AlertTriangle, Download, Loader2 } from 'lucide-react';
 import nfprcLogo from '../../assets/NFPRC_logo.png';
 import ItemEvolutionPanel from './governance/ItemEvolutionPanel';
+import { downloadItemPdf } from '../api';
 
 interface ItemDetailProps {
   item: Item;
@@ -20,6 +21,20 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, onOpenItem,
 
   const isDark = theme === 'dark';
   const linkedMinistries = item.linkedMinistries.length > 0 ? item.linkedMinistries : null;
+
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const handleDownloadPdf = async () => {
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      await downloadItemPdf(item.id);
+    } catch (err: any) {
+      setDownloadError(err.message || 'Failed to download PDF');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div className={`rounded-[2.5rem] border overflow-hidden shadow-2xl max-w-4xl mx-auto my-6 animate-fade-in transition-all ${
@@ -48,16 +63,38 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, onOpenItem,
       </div>
 
       <div className={`p-8 md:p-10 ${isDark ? 'bg-zinc-900/40' : 'bg-zinc-50/30'}`}>
-        {/* Back Link */}
-        <button
-          onClick={onBack}
-          className={`no-print flex items-center gap-2 text-sm font-bold mb-6 transition-colors group cursor-pointer ${
-            isDark ? 'text-indigo-400 hover:text-indigo-300' : 'text-indigo-700 hover:text-indigo-900'
-          }`}
-        >
-          <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
-          <span>Back to directory</span>
-        </button>
+        {/* Back Link + Download PDF */}
+        <div className="no-print flex items-center justify-between gap-4 mb-6 flex-wrap">
+          <button
+            onClick={onBack}
+            className={`flex items-center gap-2 text-sm font-bold transition-colors group cursor-pointer ${
+              isDark ? 'text-indigo-400 hover:text-indigo-300' : 'text-indigo-700 hover:text-indigo-900'
+            }`}
+          >
+            <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" />
+            <span>Back to directory</span>
+          </button>
+
+          <div className="flex items-center gap-2">
+            {downloadError && <span className="text-xs font-bold text-rose-500">{downloadError}</span>}
+            <button
+              onClick={handleDownloadPdf}
+              disabled={downloading}
+              className={`px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 border shadow-sm transition-all cursor-pointer ${
+                downloading
+                  ? 'opacity-60 cursor-not-allowed'
+                  : ''
+              } ${
+                isDark
+                  ? 'bg-zinc-900 border-zinc-800 text-zinc-200 hover:bg-zinc-800'
+                  : 'bg-white border-zinc-200 text-zinc-800 hover:bg-zinc-50'
+              }`}
+            >
+              {downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+              <span>Download PDF</span>
+            </button>
+          </div>
+        </div>
 
         {/* Full Title */}
         <h1 className={`text-2xl md:text-3xl font-extrabold font-display tracking-tight mb-5 leading-tight ${
@@ -167,18 +204,27 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, onOpenItem,
                       ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                       : item.status === 'Initiated'
                         ? 'bg-indigo-50 text-indigo-800 border border-indigo-200'
-                        : 'bg-purple-50 text-purple-800 border border-purple-200'
+                        : item.status === 'Announced'
+                          ? 'bg-purple-50 text-purple-800 border border-purple-200'
+                          : 'bg-zinc-100 text-zinc-500 border border-zinc-200 italic'
                   }`}>
-                    {item.status}
+                    {item.status ?? 'Not specified'}
                   </span>
                   <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
                     item.impact === 'High'
                       ? 'bg-rose-50 text-rose-800 border border-rose-200'
                       : item.impact === 'Medium'
                         ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                        : 'bg-zinc-100 text-zinc-700 border border-zinc-200'
+                        : item.impact === 'Low'
+                          ? 'bg-zinc-100 text-zinc-700 border border-zinc-200'
+                          : 'bg-zinc-100 text-zinc-500 border border-zinc-200 italic'
                   }`}>
-                    {item.impact} Impact
+                    {item.impact ? `${item.impact} Impact` : 'Impact not specified'}
+                  </span>
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
+                    isDark ? 'bg-zinc-800/60 border-zinc-700 text-zinc-300' : 'bg-zinc-100 border-zinc-200 text-zinc-700'
+                  }`}>
+                    {item.subtype}
                   </span>
                   {item.isDraft && (
                     <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
@@ -189,7 +235,21 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, onOpenItem,
                 </td>
               </tr>
 
-              {/* Row 5: Tags */}
+              {/* Row 5: Financial Outlay — only when the source PDF mentions one */}
+              {item.financialOutlay && (
+                <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-zinc-200'}`}>
+                  <th className={`p-4 text-xs font-bold uppercase tracking-wider border-r ${
+                    isDark ? 'bg-zinc-950/60 text-zinc-400 border-zinc-800' : 'bg-zinc-50 text-zinc-500 border-zinc-200'
+                  }`}>
+                    Financial Outlay
+                  </th>
+                  <td className={`p-4 text-xs font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                    {item.financialOutlay}
+                  </td>
+                </tr>
+              )}
+
+              {/* Row 6: Tags */}
               <tr>
                 <th className={`p-4 text-xs font-bold uppercase tracking-wider border-r ${
                   isDark ? 'bg-zinc-950/60 text-zinc-400 border-zinc-800' : 'bg-zinc-50 text-zinc-500 border-zinc-200'

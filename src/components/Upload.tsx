@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Item, Ministry, Pillar, Status, Impact, Source } from '../types';
-import { uploadIssueFile, createManualItem } from '../api';
+import { uploadIssueFiles, createManualItem, IssueUploadResult } from '../api';
 import {
   Upload as UploadIcon,
   FileText,
@@ -69,9 +69,9 @@ export default function Upload({
   const [currentSourceUrl, setCurrentSourceUrl] = useState('');
   const [tagsInput, setTagsInput] = useState('');
 
-  // File Upload states
+  // File Upload states — multiple .pdf/.docx files can be batched into one upload
   const [dragActive, setDragActive] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Submission / success state
@@ -80,6 +80,7 @@ export default function Upload({
   const [showSuccess, setShowSuccess] = useState(false);
   const [publishedItem, setPublishedItem] = useState<Item | null>(null);
   const [publishedCount, setPublishedCount] = useState(1);
+  const [uploadResults, setUploadResults] = useState<IssueUploadResult[] | null>(null);
 
   const effectiveMinistry = isCustomMinistry ? customMinistry : (selectedMinistry || ministries[0]?.name || '');
   const effectiveTheme = isCustomTheme ? customTheme : themePillar;
@@ -107,23 +108,32 @@ export default function Upload({
     }
   };
 
+  const isSupportedReportFile = (file: File) => /\.(pdf|docx)$/i.test(file.name);
+
+  const addFiles = (fileList: FileList | File[]) => {
+    const incoming = Array.from(fileList).filter(isSupportedReportFile);
+    if (incoming.length === 0) return;
+    setUploadedFiles((prev) => [...prev, ...incoming]);
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      if (file.type === 'application/pdf' || file.type.startsWith('image/') || file.type === 'text/plain') {
-        setUploadedFile(file);
-      }
+    if (e.dataTransfer.files) {
+      addFiles(e.dataTransfer.files);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setUploadedFile(e.target.files[0]);
+    if (e.target.files) {
+      addFiles(e.target.files);
     }
+    e.target.value = '';
+  };
+
+  const removeUploadedFile = (index: number) => {
+    setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const triggerFileInput = () => {
@@ -153,12 +163,13 @@ export default function Upload({
     setIsSubmitting(true);
 
     try {
-      if (uploadedFile) {
-        const result = await uploadIssueFile(uploadedFile);
-        setPublishedItem(result.items[0] ?? null);
-        setPublishedCount(result.item_count);
+      if (uploadedFiles.length > 0) {
+        const { results } = await uploadIssueFiles(uploadedFiles);
+        setUploadResults(results);
+        const firstSuccess = results.find((r) => r.success);
+        setPublishedCount(results.reduce((sum, r) => sum + r.item_count, 0));
         setShowSuccess(true);
-        onUploadSuccess(result.issue_id);
+        onUploadSuccess(firstSuccess?.issue_id);
         return;
       }
 
@@ -202,11 +213,12 @@ export default function Upload({
     setIsCustomTheme(false);
     setStatus('Initiated');
     setImpact('Medium');
-    setUploadedFile(null);
+    setUploadedFiles([]);
     setTagsInput('');
     setSources([{ label: 'Official Press Release', url: 'https://pib.gov.in' }]);
     setShowSuccess(false);
     setPublishedItem(null);
+    setUploadResults(null);
     setSubmitError(null);
   };
 
@@ -222,11 +234,89 @@ export default function Upload({
             <Loader2 size={30} className="animate-spin" />
           </div>
           <h2 className={`text-xl font-black font-display tracking-tight ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>
-            {uploadedFile ? 'Parsing Your Report' : 'Publishing Brief'}
+            {uploadedFiles.length > 0 ? `Parsing ${uploadedFiles.length > 1 ? `${uploadedFiles.length} Reports` : 'Your Report'}` : 'Publishing Brief'}
           </h2>
           <p className="text-xs text-zinc-500 font-medium mt-2 max-w-xs mx-auto">
             Please wait while we process the data...
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (showSuccess && uploadResults) {
+    const successCount = uploadResults.filter((r) => r.success).length;
+    const failureCount = uploadResults.length - successCount;
+    return (
+      <div className="max-w-2xl mx-auto py-12 px-4">
+        <div className={`p-8 md:p-10 rounded-3xl border text-center shadow-2xl transition-all ${
+          isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
+        }`}>
+          <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-6 border ${
+            failureCount > 0 && successCount === 0
+              ? 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+              : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+          }`}>
+            <CheckCircle2 size={32} className={successCount > 0 ? 'animate-bounce' : ''} />
+          </div>
+          <h2 className={`text-2xl font-black font-display tracking-tight ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>
+            {successCount} of {uploadResults.length} Report{uploadResults.length > 1 ? 's' : ''} Published
+          </h2>
+          <p className="text-xs text-zinc-500 font-medium mt-1.5 max-w-md mx-auto">
+            {successCount > 0
+              ? `Parsed into ${publishedCount} total items, already live in the interactive database.`
+              : 'None of the uploaded files could be parsed — see the errors below.'}
+          </p>
+
+          <div className="mt-8 space-y-2.5 text-left max-w-lg mx-auto">
+            {uploadResults.map((result, i) => (
+              <div
+                key={i}
+                className={`p-4 rounded-2xl border text-xs ${
+                  result.success
+                    ? isDark ? 'bg-zinc-950/50 border-zinc-800' : 'bg-zinc-50 border-zinc-200'
+                    : isDark ? 'bg-rose-500/5 border-rose-500/20' : 'bg-rose-50 border-rose-100'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className={`font-bold truncate ${isDark ? 'text-zinc-200' : 'text-zinc-800'}`}>{result.filename}</span>
+                  {result.success ? (
+                    <span className="shrink-0 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100/50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                      {result.item_count} item{result.item_count === 1 ? '' : 's'}
+                    </span>
+                  ) : (
+                    <span className="shrink-0 text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-100/50 dark:bg-rose-950/30 px-2 py-0.5 rounded-full border border-rose-500/20">
+                      Failed
+                    </span>
+                  )}
+                </div>
+                {result.success ? (
+                  <p className="text-zinc-400 mt-1">{result.issue_label}</p>
+                ) : (
+                  <p className="text-rose-500 dark:text-rose-400 mt-1">{result.error}</p>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center items-center mt-10">
+            <button
+              onClick={handleResetForm}
+              className={`w-full sm:w-auto px-6 py-2.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+                isDark
+                  ? 'bg-zinc-800 border-zinc-700 text-zinc-200 hover:bg-zinc-700'
+                  : 'bg-white border-zinc-250 text-zinc-700 hover:bg-zinc-50 shadow-sm'
+              }`}
+            >
+              Upload More Reports
+            </button>
+            <button
+              onClick={onBackToDashboard}
+              className="w-full sm:w-auto px-6 py-2.5 bg-indigo-600 hover:bg-indigo-550 text-white rounded-full text-xs font-bold transition-all shadow-md cursor-pointer"
+            >
+              Return to Dashboard
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -392,7 +482,7 @@ export default function Upload({
               </label>
               <input
                 type="text"
-                required={!uploadedFile}
+                required={uploadedFiles.length === 0}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. National Green Hydrogen Mission allocates funding..."
@@ -410,7 +500,7 @@ export default function Upload({
                 Policy Description & Brief *
               </label>
               <textarea
-                required={!uploadedFile}
+                required={uploadedFiles.length === 0}
                 rows={4}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -454,7 +544,7 @@ export default function Upload({
                   ) : (
                     <input
                       type="text"
-                      required={!uploadedFile}
+                      required={uploadedFiles.length === 0}
                       value={customMinistry}
                       onChange={(e) => setCustomMinistry(e.target.value)}
                       placeholder="e.g. Ministry of Space & Technology"
@@ -497,7 +587,7 @@ export default function Upload({
                 ) : (
                   <input
                     type="text"
-                    required={!uploadedFile}
+                    required={uploadedFiles.length === 0}
                     value={customTheme}
                     onChange={(e) => setCustomTheme(e.target.value)}
                     placeholder="e.g. Digital Governance"
@@ -568,7 +658,7 @@ export default function Upload({
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    required={!uploadedFile}
+                    required={uploadedFiles.length === 0}
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
                     placeholder="e.g. 24 Jun"
@@ -580,7 +670,7 @@ export default function Upload({
                   />
                   <input
                     type="number"
-                    required={!uploadedFile}
+                    required={uploadedFiles.length === 0}
                     min={1}
                     max={30}
                     value={dateValue}
@@ -740,8 +830,10 @@ export default function Upload({
               }`}
             >
               {isSubmitting
-                ? (uploadedFile ? 'Parsing & Publishing…' : 'Publishing…')
-                : (uploadedFile ? 'Parse & Publish Uploaded Report' : 'Confirm and Publish Brief')}
+                ? (uploadedFiles.length > 0 ? 'Parsing & Publishing…' : 'Publishing…')
+                : (uploadedFiles.length > 0
+                    ? `Parse & Publish ${uploadedFiles.length > 1 ? `${uploadedFiles.length} Reports` : 'Uploaded Report'}`
+                    : 'Confirm and Publish Brief')}
             </button>
           </form>
         </div>
@@ -752,10 +844,10 @@ export default function Upload({
             isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-800'
           }`}>
             <h3 className={`text-sm font-bold font-display tracking-tight mb-1 ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>
-              Or Simply Upload a Report (PDF)
+              Or Simply Upload Reports (PDF / Word)
             </h3>
             <p className="text-[10px] text-zinc-500 font-semibold mb-6 uppercase tracking-wider">
-              OPTIONAL PDF OR DOCUMENTATION
+              OPTIONAL — ONE OR MORE FILES
             </p>
 
             {/* Drag and drop panel */}
@@ -776,59 +868,61 @@ export default function Upload({
               <input
                 ref={fileInputRef}
                 type="file"
-                multiple={false}
-                accept=".pdf,.txt,.doc,.docx"
+                multiple
+                accept=".pdf,.docx"
                 onChange={handleFileChange}
                 className="hidden"
               />
 
-              {!uploadedFile ? (
-                <>
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-3 border ${
-                    isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-400' : 'bg-white border-zinc-200 text-zinc-500 shadow-sm'
-                  }`}>
-                    <UploadIcon size={16} />
-                  </div>
-                  <p className={`text-xs font-bold ${isDark ? 'text-zinc-300' : 'text-zinc-800'}`}>
-                    Drag & Drop File Here
-                  </p>
-                  <p className="text-[10px] text-zinc-500 font-semibold mt-1">
-                    or click to search computer
-                  </p>
-                  <p className="text-[9px] text-zinc-500/80 mt-3 italic">
-                    Supports PDF, DOCX or TXT (Max 15MB)
-                  </p>
-                </>
-              ) : (
-                <div className="w-full">
-                  <div className="mx-auto w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center mb-3">
-                    <FileText size={16} />
-                  </div>
-                  <p className={`text-xs font-bold truncate max-w-[200px] mx-auto ${isDark ? 'text-zinc-200' : 'text-zinc-800'}`}>
-                    {uploadedFile.name}
-                  </p>
-                  <p className="text-[10px] text-zinc-400 mt-0.5">
-                    {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
-                  <div className="flex items-center justify-center gap-1.5 mt-4">
-                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100/50 dark:bg-emerald-950/30 dark:text-emerald-400 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
-                      Loaded Successfully
-                    </span>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-3 border ${
+                isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-400' : 'bg-white border-zinc-200 text-zinc-500 shadow-sm'
+              }`}>
+                <UploadIcon size={16} />
+              </div>
+              <p className={`text-xs font-bold ${isDark ? 'text-zinc-300' : 'text-zinc-800'}`}>
+                Drag & Drop Files Here
+              </p>
+              <p className="text-[10px] text-zinc-500 font-semibold mt-1">
+                or click to search computer
+              </p>
+              <p className="text-[9px] text-zinc-500/80 mt-3 italic">
+                Supports PDF or DOCX, multiple files at once (Max 15MB each)
+              </p>
+            </div>
+
+            {uploadedFiles.length > 0 && (
+              <div className="mt-4 space-y-2">
+                {uploadedFiles.map((file, index) => (
+                  <div
+                    key={`${file.name}-${index}`}
+                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl border text-xs ${
+                      isDark ? 'bg-zinc-950/40 border-zinc-800' : 'bg-zinc-50 border-zinc-200'
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border ${
+                      isDark ? 'bg-emerald-950/30 border-emerald-500/20 text-emerald-400' : 'bg-emerald-50 border-emerald-200 text-emerald-600'
+                    }`}>
+                      <FileText size={13} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={`font-bold truncate ${isDark ? 'text-zinc-200' : 'text-zinc-800'}`}>{file.name}</p>
+                      <p className="text-[10px] text-zinc-400">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                    </div>
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setUploadedFile(null);
+                        removeUploadedFile(index);
                       }}
-                      className="text-zinc-400 hover:text-rose-500 p-1 rounded-full cursor-pointer hover:bg-zinc-200/40 dark:hover:bg-zinc-800"
+                      className="text-zinc-400 hover:text-rose-500 p-1 rounded-full cursor-pointer hover:bg-zinc-200/40 dark:hover:bg-zinc-800 shrink-0"
                       title="Remove file"
                     >
                       <X size={12} />
                     </button>
                   </div>
-                </div>
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Quick tips panel */}

@@ -14,6 +14,8 @@ class IssueOut(BaseModel):
     itemsCount: int
     executive_summary: str = ""
     pdf_url: str = ""
+    hasPdf: bool = False
+    periodStart: str = ""
 
 
 class IssueDetailOut(IssueOut):
@@ -28,4 +30,6 @@ def serialize_issue(doc: dict, item_count: int = 0) -> IssueOut:
         itemsCount=item_count,
         executive_summary=doc.get("executive_summary", ""),
         pdf_url=doc.get("pdf_url", ""),
+        hasPdf=doc.get("pdf_file_id") is not None,
+        periodStart=doc["period_start"].date().isoformat(),
     )

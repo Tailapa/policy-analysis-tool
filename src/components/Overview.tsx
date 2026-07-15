@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Item, Pillar, Status, Impact, Issue, Ministry } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Item, Pillar, Status, Impact, Subtype, Issue, Ministry } from '../types';
 import { ALL_ISSUES_ID, getDefaultPillarMeta } from '../constants';
 import {
   Building2,
@@ -7,6 +7,7 @@ import {
   MapPin,
   ExternalLink,
   ChevronDown,
+  Check,
   Search,
   Flame,
   Calendar,
@@ -44,8 +45,12 @@ export default function Overview({
 }: OverviewProps) {
   const isDark = theme === 'dark';
   const activeItems = items || [];
-  // Filters state
-  const [selectedTheme, setSelectedTheme] = useState<Pillar | undefined>(undefined);
+  // Filters state — Ministry/Regulatory Body/Theme are multi-select (arrays,
+  // OR'd within each category); Status/Impact/Type stay single-select.
+  const [selectedMinistryNames, setSelectedMinistryNames] = useState<string[]>([]);
+  const [selectedRegulatoryBodyNames, setSelectedRegulatoryBodyNames] = useState<string[]>([]);
+  const [selectedThemeNames, setSelectedThemeNames] = useState<string[]>([]);
+  const [selectedSubtype, setSelectedSubtype] = useState<Subtype | undefined>(undefined);
   const [selectedStatus, setSelectedStatus] = useState<Status | undefined>(undefined);
   const [selectedImpact, setSelectedImpact] = useState<Impact | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState('');
@@ -63,7 +68,18 @@ export default function Overview({
   const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [impactDropdownOpen, setImpactDropdownOpen] = useState(false);
+  const [subtypeDropdownOpen, setSubtypeDropdownOpen] = useState(false);
   const [issueDropdownOpen, setIssueDropdownOpen] = useState(false);
+
+  const closeAllFilterDropdowns = () => {
+    setMinistryDropdownOpen(false);
+    setRegulatoryBodyDropdownOpen(false);
+    setThemeDropdownOpen(false);
+    setDateDropdownOpen(false);
+    setStatusDropdownOpen(false);
+    setImpactDropdownOpen(false);
+    setSubtypeDropdownOpen(false);
+  };
 
   // Dynamic stats calculated from active items
   const stats = useMemo(() => {
@@ -101,8 +117,37 @@ export default function Overview({
       .sort((a, b) => b.count - a.count);
   }, [activeItems]);
 
-  const selectedIsMinistry = !!selectedMinistry && ministryOptions.some(m => m.name === selectedMinistry);
-  const selectedIsRegulatoryBody = !!selectedMinistry && regulatoryBodyOptions.some(m => m.name === selectedMinistry);
+  // The shared `selectedMinistry` prop carries a single-value "jump here and
+  // filter by this" signal from elsewhere (Featured Ministry card, a
+  // ministry chip on ItemDetail, etc.) — fold it into the local multi-select
+  // arrays on arrival, then consume it so it doesn't re-fire.
+  useEffect(() => {
+    if (!selectedMinistry) return;
+    const isRegBody = regulatoryBodyOptions.some(m => m.name === selectedMinistry);
+    if (isRegBody) {
+      setSelectedRegulatoryBodyNames(prev => (prev.includes(selectedMinistry) ? prev : [...prev, selectedMinistry]));
+    } else {
+      setSelectedMinistryNames(prev => (prev.includes(selectedMinistry) ? prev : [...prev, selectedMinistry]));
+    }
+    setSelectedMinistry(undefined);
+    setCurrentPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMinistry]);
+
+  const toggleMinistryName = (name: string) => {
+    setSelectedMinistryNames(prev => (prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]));
+    setCurrentPage(1);
+  };
+  const toggleRegulatoryBodyName = (name: string) => {
+    setSelectedRegulatoryBodyNames(prev => (prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]));
+    setCurrentPage(1);
+  };
+  const toggleThemeName = (name: string) => {
+    setSelectedThemeNames(prev => (prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]));
+    setCurrentPage(1);
+  };
+  const pillLabel = (names: string[], allLabel: string) =>
+    names.length === 0 ? allLabel : names.length === 1 ? names[0] : `${names.length} selected`;
 
   // Most active ministry this issue + its metadata, driving the "Featured
   // Ministry" spotlight card
@@ -179,15 +224,19 @@ export default function Overview({
     const referenceDate = new Date(2026, 6, 9); // July 9, 2026 from metadata
 
     return activeItems.filter(item => {
-      // Ministry / Regulatory Body filter
-      if (selectedMinistry && !(item.linkedMinistries || []).some(m => m.name === selectedMinistry)) return false;
-      // Theme filter
-      if (selectedTheme && item.theme !== selectedTheme) return false;
+      // Ministry filter (OR within selection)
+      if (selectedMinistryNames.length > 0 && !(item.linkedMinistries || []).some(m => selectedMinistryNames.includes(m.name))) return false;
+      // Regulatory Body filter (OR within selection)
+      if (selectedRegulatoryBodyNames.length > 0 && !(item.linkedMinistries || []).some(m => selectedRegulatoryBodyNames.includes(m.name))) return false;
+      // Theme filter (OR within selection)
+      if (selectedThemeNames.length > 0 && !selectedThemeNames.includes(item.theme)) return false;
+      // Type filter (Policy Update / Announcement)
+      if (selectedSubtype && item.subtype !== selectedSubtype) return false;
       // Status filter
       if (selectedStatus && item.status !== selectedStatus) return false;
       // Impact filter
       if (selectedImpact && item.impact !== selectedImpact) return false;
-      
+
       // Date filter
       if (selectedDateFilter !== 'all') {
         const itemDate = parseItemDate(item.date);
@@ -227,7 +276,19 @@ export default function Overview({
       }
       return true;
     });
-  }, [selectedMinistry, selectedTheme, selectedStatus, selectedImpact, searchQuery, selectedDateFilter, customStartDate, customEndDate, activeItems]);
+  }, [
+    selectedMinistryNames,
+    selectedRegulatoryBodyNames,
+    selectedThemeNames,
+    selectedSubtype,
+    selectedStatus,
+    selectedImpact,
+    searchQuery,
+    selectedDateFilter,
+    customStartDate,
+    customEndDate,
+    activeItems,
+  ]);
 
   // Pagination calculations (6 items per page)
   const itemsPerPage = 6;
@@ -245,7 +306,10 @@ export default function Overview({
 
   const handleClearFilters = () => {
     setSelectedMinistry(undefined);
-    setSelectedTheme(undefined);
+    setSelectedMinistryNames([]);
+    setSelectedRegulatoryBodyNames([]);
+    setSelectedThemeNames([]);
+    setSelectedSubtype(undefined);
     setSelectedStatus(undefined);
     setSelectedImpact(undefined);
     setSelectedDateFilter('all');
@@ -467,7 +531,7 @@ export default function Overview({
                 return (
                   <button
                     key={theme}
-                    onClick={() => setSelectedTheme(theme)}
+                    onClick={() => { setSelectedThemeNames([theme]); setCurrentPage(1); }}
                     className={`flex items-center gap-1.5 text-left p-1 rounded-lg cursor-pointer transition-colors ${
                       isDark ? 'hover:bg-zinc-800/40' : 'hover:bg-zinc-100/50'
                     }`}
@@ -487,25 +551,22 @@ export default function Overview({
         isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-800'
       }`}>
         <div className="flex flex-wrap gap-2 items-center">
-          {/* Ministry Filter Pill */}
+          {/* Ministry Filter Pill (multi-select) */}
           <div className="relative">
             <button
               onClick={() => {
-                setMinistryDropdownOpen(!ministryDropdownOpen);
-                setRegulatoryBodyDropdownOpen(false);
-                setThemeDropdownOpen(false);
-                setDateDropdownOpen(false);
-                setStatusDropdownOpen(false);
-                setImpactDropdownOpen(false);
+                const next = !ministryDropdownOpen;
+                closeAllFilterDropdowns();
+                setMinistryDropdownOpen(next);
               }}
               className={`px-4 py-2 text-xs font-bold rounded-full flex items-center gap-1.5 border cursor-pointer transition-all shadow-sm ${
                 isDark
                   ? 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-zinc-100'
                   : 'bg-zinc-50 border-zinc-200 hover:bg-zinc-100 text-zinc-800'
-              } ${selectedIsMinistry ? 'ring-2 ring-amber-500' : ''}`}
+              } ${selectedMinistryNames.length > 0 ? 'ring-2 ring-amber-500' : ''}`}
             >
               <Building2 size={13} className="text-amber-500" />
-              <span>{selectedIsMinistry ? selectedMinistry : 'Ministry: All'}</span>
+              <span>{pillLabel(selectedMinistryNames, 'Ministry: All')}</span>
               <ChevronDown size={12} className="text-zinc-400" />
             </button>
             {ministryDropdownOpen && (
@@ -514,8 +575,7 @@ export default function Overview({
               }`}>
                 <button
                   onClick={() => {
-                    setSelectedMinistry(undefined);
-                    setMinistryDropdownOpen(false);
+                    setSelectedMinistryNames([]);
                     setCurrentPage(1);
                   }}
                   className={`w-full text-left px-3 py-2 font-bold border-b text-amber-500 ${
@@ -524,45 +584,46 @@ export default function Overview({
                 >
                   Clear Ministry Filter
                 </button>
-                {ministryOptions.map((m) => (
-                  <button
-                    key={m.name}
-                    onClick={() => {
-                      setSelectedMinistry(m.name);
-                      setMinistryDropdownOpen(false);
-                      setCurrentPage(1);
-                    }}
-                    className={`w-full text-left px-3 py-2 flex items-center justify-between ${
-                      isDark ? 'hover:bg-zinc-800' : 'hover:bg-zinc-50'
-                    } ${selectedMinistry === m.name ? 'bg-indigo-500/10 font-bold text-indigo-600 dark:text-indigo-400' : ''}`}
-                  >
-                    <span className="truncate">{m.name}</span>
-                    <span className="text-[10px] text-zinc-400">({m.count})</span>
-                  </button>
-                ))}
+                {ministryOptions.map((m) => {
+                  const checked = selectedMinistryNames.includes(m.name);
+                  return (
+                    <button
+                      key={m.name}
+                      onClick={() => toggleMinistryName(m.name)}
+                      className={`w-full text-left px-3 py-2 flex items-center gap-2 ${
+                        isDark ? 'hover:bg-zinc-800' : 'hover:bg-zinc-50'
+                      } ${checked ? 'bg-indigo-500/10 font-bold text-indigo-600 dark:text-indigo-400' : ''}`}
+                    >
+                      <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                        checked ? 'bg-indigo-600 border-indigo-600' : isDark ? 'border-zinc-600' : 'border-zinc-300'
+                      }`}>
+                        {checked && <Check size={10} className="text-white" />}
+                      </span>
+                      <span className="truncate flex-1">{m.name}</span>
+                      <span className="text-[10px] text-zinc-400">({m.count})</span>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
 
-          {/* Regulatory Body Filter Pill */}
+          {/* Regulatory Body Filter Pill (multi-select) */}
           <div className="relative">
             <button
               onClick={() => {
-                setRegulatoryBodyDropdownOpen(!regulatoryBodyDropdownOpen);
-                setMinistryDropdownOpen(false);
-                setThemeDropdownOpen(false);
-                setDateDropdownOpen(false);
-                setStatusDropdownOpen(false);
-                setImpactDropdownOpen(false);
+                const next = !regulatoryBodyDropdownOpen;
+                closeAllFilterDropdowns();
+                setRegulatoryBodyDropdownOpen(next);
               }}
               className={`px-4 py-2 text-xs font-bold rounded-full flex items-center gap-1.5 border cursor-pointer transition-all shadow-sm ${
                 isDark
                   ? 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-zinc-100'
                   : 'bg-zinc-50 border-zinc-200 hover:bg-zinc-100 text-zinc-800'
-              } ${selectedIsRegulatoryBody ? 'ring-2 ring-purple-500' : ''}`}
+              } ${selectedRegulatoryBodyNames.length > 0 ? 'ring-2 ring-purple-500' : ''}`}
             >
               <Landmark size={13} className="text-purple-500" />
-              <span>{selectedIsRegulatoryBody ? selectedMinistry : 'Regulatory Body: All'}</span>
+              <span>{pillLabel(selectedRegulatoryBodyNames, 'Regulatory Body: All')}</span>
               <ChevronDown size={12} className="text-zinc-400" />
             </button>
             {regulatoryBodyDropdownOpen && (
@@ -571,8 +632,7 @@ export default function Overview({
               }`}>
                 <button
                   onClick={() => {
-                    setSelectedMinistry(undefined);
-                    setRegulatoryBodyDropdownOpen(false);
+                    setSelectedRegulatoryBodyNames([]);
                     setCurrentPage(1);
                   }}
                   className={`w-full text-left px-3 py-2 font-bold border-b text-purple-500 ${
@@ -584,46 +644,47 @@ export default function Overview({
                 {regulatoryBodyOptions.length === 0 ? (
                   <p className="px-3 py-2 text-zinc-400">No regulatory bodies in this issue.</p>
                 ) : (
-                  regulatoryBodyOptions.map((m) => (
-                    <button
-                      key={m.name}
-                      onClick={() => {
-                        setSelectedMinistry(m.name);
-                        setRegulatoryBodyDropdownOpen(false);
-                        setCurrentPage(1);
-                      }}
-                      className={`w-full text-left px-3 py-2 flex items-center justify-between ${
-                        isDark ? 'hover:bg-zinc-800' : 'hover:bg-zinc-50'
-                      } ${selectedMinistry === m.name ? 'bg-indigo-500/10 font-bold text-indigo-600 dark:text-indigo-400' : ''}`}
-                    >
-                      <span className="truncate">{m.name}</span>
-                      <span className="text-[10px] text-zinc-400">({m.count})</span>
-                    </button>
-                  ))
+                  regulatoryBodyOptions.map((m) => {
+                    const checked = selectedRegulatoryBodyNames.includes(m.name);
+                    return (
+                      <button
+                        key={m.name}
+                        onClick={() => toggleRegulatoryBodyName(m.name)}
+                        className={`w-full text-left px-3 py-2 flex items-center gap-2 ${
+                          isDark ? 'hover:bg-zinc-800' : 'hover:bg-zinc-50'
+                        } ${checked ? 'bg-indigo-500/10 font-bold text-indigo-600 dark:text-indigo-400' : ''}`}
+                      >
+                        <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                          checked ? 'bg-indigo-600 border-indigo-600' : isDark ? 'border-zinc-600' : 'border-zinc-300'
+                        }`}>
+                          {checked && <Check size={10} className="text-white" />}
+                        </span>
+                        <span className="truncate flex-1">{m.name}</span>
+                        <span className="text-[10px] text-zinc-400">({m.count})</span>
+                      </button>
+                    );
+                  })
                 )}
               </div>
             )}
           </div>
 
-          {/* Theme Filter Pill */}
+          {/* Theme Filter Pill (multi-select) */}
           <div className="relative">
             <button
               onClick={() => {
-                setThemeDropdownOpen(!themeDropdownOpen);
-                setMinistryDropdownOpen(false);
-                setRegulatoryBodyDropdownOpen(false);
-                setDateDropdownOpen(false);
-                setStatusDropdownOpen(false);
-                setImpactDropdownOpen(false);
+                const next = !themeDropdownOpen;
+                closeAllFilterDropdowns();
+                setThemeDropdownOpen(next);
               }}
               className={`px-4 py-2 text-xs font-bold rounded-full flex items-center gap-1.5 border cursor-pointer transition-all shadow-sm ${
-                isDark 
-                  ? 'bg-zinc-800 border-zinc-700 hover:bg-zinc-750 text-zinc-100' 
+                isDark
+                  ? 'bg-zinc-800 border-zinc-700 hover:bg-zinc-750 text-zinc-100'
                   : 'bg-zinc-50 border-zinc-200 hover:bg-zinc-100 text-zinc-800'
-              } ${selectedTheme ? 'ring-2 ring-emerald-500' : ''}`}
+              } ${selectedThemeNames.length > 0 ? 'ring-2 ring-emerald-500' : ''}`}
             >
               <SlidersHorizontal size={13} className="text-emerald-500" />
-              <span>{selectedTheme || 'Theme: All'}</span>
+              <span>{pillLabel(selectedThemeNames, 'Theme: All')}</span>
               <ChevronDown size={12} className="text-zinc-400" />
             </button>
             {themeDropdownOpen && (
@@ -632,8 +693,7 @@ export default function Overview({
               }`}>
                 <button
                   onClick={() => {
-                    setSelectedTheme(undefined);
-                    setThemeDropdownOpen(false);
+                    setSelectedThemeNames([]);
                     setCurrentPage(1);
                   }}
                   className={`w-full text-left px-3 py-2 font-bold border-b text-emerald-500 ${
@@ -642,25 +702,29 @@ export default function Overview({
                 >
                   Clear Theme Filter
                 </button>
-                {pillars.map((theme) => (
-                  <button
-                    key={theme}
-                    onClick={() => {
-                      setSelectedTheme(theme);
-                      setThemeDropdownOpen(false);
-                      setCurrentPage(1);
-                    }}
-                    className={`w-full text-left px-3 py-2 flex items-center gap-2 ${
-                      isDark ? 'hover:bg-zinc-800' : 'hover:bg-zinc-50'
-                    } ${selectedTheme === theme ? 'bg-emerald-500/10 font-bold text-emerald-600 dark:text-emerald-400' : ''}`}
-                  >
-                    <span
-                      className="w-2 h-2 rounded-full block shrink-0"
-                      style={{ backgroundColor: (pillarMeta[theme] ?? defaultPillarMeta).color }}
-                    ></span>
-                    <span>{theme}</span>
-                  </button>
-                ))}
+                {pillars.map((theme) => {
+                  const checked = selectedThemeNames.includes(theme);
+                  return (
+                    <button
+                      key={theme}
+                      onClick={() => toggleThemeName(theme)}
+                      className={`w-full text-left px-3 py-2 flex items-center gap-2 ${
+                        isDark ? 'hover:bg-zinc-800' : 'hover:bg-zinc-50'
+                      } ${checked ? 'bg-emerald-500/10 font-bold text-emerald-600 dark:text-emerald-400' : ''}`}
+                    >
+                      <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                        checked ? 'bg-emerald-600 border-emerald-600' : isDark ? 'border-zinc-600' : 'border-zinc-300'
+                      }`}>
+                        {checked && <Check size={10} className="text-white" />}
+                      </span>
+                      <span
+                        className="w-2 h-2 rounded-full block shrink-0"
+                        style={{ backgroundColor: (pillarMeta[theme] ?? defaultPillarMeta).color }}
+                      ></span>
+                      <span className="flex-1">{theme}</span>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -669,12 +733,9 @@ export default function Overview({
           <div className="relative">
             <button
               onClick={() => {
-                setDateDropdownOpen(!dateDropdownOpen);
-                setMinistryDropdownOpen(false);
-                setRegulatoryBodyDropdownOpen(false);
-                setThemeDropdownOpen(false);
-                setStatusDropdownOpen(false);
-                setImpactDropdownOpen(false);
+                const next = !dateDropdownOpen;
+                closeAllFilterDropdowns();
+                setDateDropdownOpen(next);
               }}
               className={`px-4 py-2 text-xs font-bold rounded-full flex items-center gap-1.5 border cursor-pointer transition-all shadow-sm ${
                 isDark 
@@ -804,12 +865,9 @@ export default function Overview({
           <div className="relative">
             <button
               onClick={() => {
-                setStatusDropdownOpen(!statusDropdownOpen);
-                setMinistryDropdownOpen(false);
-                setRegulatoryBodyDropdownOpen(false);
-                setThemeDropdownOpen(false);
-                setDateDropdownOpen(false);
-                setImpactDropdownOpen(false);
+                const next = !statusDropdownOpen;
+                closeAllFilterDropdowns();
+                setStatusDropdownOpen(next);
               }}
               className={`px-3 py-1.5 rounded-full border text-xs font-semibold cursor-pointer transition-all ${
                 selectedStatus 
@@ -861,12 +919,9 @@ export default function Overview({
           <div className="relative">
             <button
               onClick={() => {
-                setImpactDropdownOpen(!impactDropdownOpen);
-                setMinistryDropdownOpen(false);
-                setRegulatoryBodyDropdownOpen(false);
-                setThemeDropdownOpen(false);
-                setDateDropdownOpen(false);
-                setStatusDropdownOpen(false);
+                const next = !impactDropdownOpen;
+                closeAllFilterDropdowns();
+                setImpactDropdownOpen(next);
               }}
               className={`px-3 py-1.5 rounded-full border text-xs font-semibold cursor-pointer transition-all ${
                 selectedImpact 
@@ -914,8 +969,62 @@ export default function Overview({
             )}
           </div>
 
+          {/* Type Chip (Policy Update / Announcement) */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                const next = !subtypeDropdownOpen;
+                closeAllFilterDropdowns();
+                setSubtypeDropdownOpen(next);
+              }}
+              className={`px-3 py-1.5 rounded-full border text-xs font-semibold cursor-pointer transition-all ${
+                selectedSubtype
+                  ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 font-bold'
+                  : isDark
+                    ? 'border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                    : 'border-zinc-300 text-zinc-600 hover:border-zinc-400 shadow-sm'
+              }`}
+            >
+              <span>{selectedSubtype || 'Type'}</span>
+              <ChevronDown size={10} className="inline ml-1 opacity-70" />
+            </button>
+            {subtypeDropdownOpen && (
+              <div className={`absolute top-9 left-0 border rounded-2xl shadow-2xl w-40 z-30 py-1.5 text-xs transition-all ${
+                isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-800'
+              }`}>
+                <button
+                  onClick={() => {
+                    setSelectedSubtype(undefined);
+                    setSubtypeDropdownOpen(false);
+                    setCurrentPage(1);
+                  }}
+                  className={`w-full text-left px-3 py-2 font-bold border-b ${
+                    isDark ? 'hover:bg-zinc-800 border-zinc-800' : 'hover:bg-zinc-50 border-zinc-100'
+                  }`}
+                >
+                  All Types
+                </button>
+                {(['Policy Update', 'Announcement'] as Subtype[]).map((st) => (
+                  <button
+                    key={st}
+                    onClick={() => {
+                      setSelectedSubtype(st);
+                      setSubtypeDropdownOpen(false);
+                      setCurrentPage(1);
+                    }}
+                    className={`w-full text-left px-3 py-2 ${
+                      isDark ? 'hover:bg-zinc-800' : 'hover:bg-zinc-50'
+                    } ${selectedSubtype === st ? 'bg-zinc-150 text-indigo-600 dark:bg-zinc-800 dark:text-indigo-400 font-bold' : ''}`}
+                  >
+                    {st}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Reset Filters */}
-          {(selectedMinistry || selectedTheme || selectedStatus || selectedImpact || selectedDateFilter !== 'all' || customStartDate || customEndDate || searchQuery) && (
+          {(selectedMinistryNames.length > 0 || selectedRegulatoryBodyNames.length > 0 || selectedThemeNames.length > 0 || selectedSubtype || selectedStatus || selectedImpact || selectedDateFilter !== 'all' || customStartDate || customEndDate || searchQuery) && (
             <button
               onClick={handleClearFilters}
               className="px-2.5 py-1 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer flex items-center gap-1"
