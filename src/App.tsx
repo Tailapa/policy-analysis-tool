@@ -19,6 +19,8 @@ export default function App() {
 
   const [issues, setIssues] = useState<Issue[]>([]);
   const [items, setItems] = useState<Item[]>([]);
+  const [allItems, setAllItems] = useState<Item[]>([]);
+  const [isLoadingAllItems, setIsLoadingAllItems] = useState(true);
   const [ministries, setMinistries] = useState<Ministry[]>([]);
   const [pillars, setPillars] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -71,6 +73,17 @@ export default function App() {
     fetchPillars()
       .then(setPillars)
       .catch(err => setLoadError(err.message || 'Failed to load themes from the backend'));
+
+    // Overview needs the full cross-issue item set for its year/month/issue
+    // multi-select filters, independent of whichever single issue the other
+    // tabs are currently scoped to.
+    setIsLoadingAllItems(true);
+    fetchAllItems()
+      .then(fetched => {
+        setAllItems(fetched);
+      })
+      .catch(err => setLoadError(err.message || 'Failed to load items from the backend'))
+      .finally(() => setIsLoadingAllItems(false));
   }, []);
 
   // Fetch items for whichever issue is currently selected (or every issue,
@@ -98,15 +111,17 @@ export default function App() {
       const targetId = issueId || freshIssues[0]?.id;
       if (!targetId) return;
 
-      const [freshItems, freshMinistries, freshPillars] = await Promise.all([
+      const [freshItems, freshMinistries, freshPillars, freshAllItems] = await Promise.all([
         fetchItemsForIssue(targetId),
         fetchMinistries(),
         fetchPillars(),
+        fetchAllItems(),
       ]);
       setCurrentIssueId(targetId);
       setItems(freshItems);
       setMinistries(freshMinistries);
       setPillars(freshPillars);
+      setAllItems(freshAllItems);
     } catch (err: any) {
       setLoadError(err.message || 'Failed to refresh after publishing');
     }
@@ -272,13 +287,11 @@ export default function App() {
                 selectedMinistry={selectedMinistry}
                 setSelectedMinistry={setSelectedMinistry}
                 theme={theme}
-                items={items}
-                currentIssueId={currentIssueId}
-                setCurrentIssueId={setCurrentIssueId}
+                items={allItems}
                 issues={issues}
                 ministries={ministries}
                 pillars={pillars}
-                isLoading={isLoading}
+                isLoading={isLoadingAllItems}
               />
             )}
 
@@ -291,6 +304,7 @@ export default function App() {
                 setSelectedMinistry={setSelectedMinistry}
                 theme={theme}
                 items={items}
+                allItems={allItems}
                 currentIssueId={currentIssueId}
                 setCurrentIssueId={setCurrentIssueId}
                 issues={issues}
@@ -308,6 +322,7 @@ export default function App() {
                 setSelectedMinistry={setSelectedMinistry}
                 theme={theme}
                 items={items}
+                allItems={allItems}
                 currentIssueId={currentIssueId}
                 setCurrentIssueId={setCurrentIssueId}
                 issues={issues}
@@ -320,10 +335,9 @@ export default function App() {
               <Drafts
                 onSelectItem={handleSelectItem}
                 theme={theme}
-                items={items}
-                currentIssueId={currentIssueId}
-                setCurrentIssueId={setCurrentIssueId}
+                items={allItems}
                 issues={issues}
+                isLoading={isLoadingAllItems}
               />
             )}
 

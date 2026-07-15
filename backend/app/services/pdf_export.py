@@ -31,6 +31,14 @@ SUBTITLE_STYLE = ParagraphStyle("ReportSubtitle", parent=_styles["Normal"], font
 ITEM_TITLE_STYLE = ParagraphStyle("ItemTitle", parent=_styles["Heading2"], fontSize=12, textColor=BRAND_BLUE, spaceBefore=8, spaceAfter=4)
 BODY_STYLE = ParagraphStyle("Body", parent=_styles["Normal"], fontSize=9.5, leading=13)
 LABEL_STYLE = ParagraphStyle("Label", parent=_styles["Normal"], fontSize=8.5, textColor=colors.grey)
+EVOLUTION_YEAR_STYLE = ParagraphStyle("EvoYear", parent=_styles["Normal"], fontSize=8, textColor=BRAND_BLUE, fontName="Helvetica-Bold")
+EVOLUTION_LABEL_STYLE = ParagraphStyle("EvoLabel", parent=_styles["Normal"], fontSize=8.5, textColor=colors.black, fontName="Helvetica-Bold", spaceBefore=1, leading=10.5)
+EVOLUTION_DESC_STYLE = ParagraphStyle("EvoDesc", parent=_styles["Normal"], fontSize=7.5, textColor=colors.grey, leading=9.5, spaceBefore=2)
+
+# A stage "card" in the horizontal timeline — fixed width so we can compute
+# how many fit per row and wrap the rest onto subsequent rows instead of
+# overflowing the A4 page.
+EVOLUTION_STAGE_WIDTH = 40 * mm
 
 
 def _pdf_safe(text: str) -> str:
@@ -154,6 +162,63 @@ def _sources_flowables(item_doc: dict) -> list:
     return flow
 
 
+def _evolution_flowables(item_doc: dict) -> list:
+    """Horizontal timeline of a policy's genealogy (see policy_evolution.py)
+    — a row of stage cards (year/month + label + description), wrapping onto
+    a new row of cards rather than overflowing the page width, followed by
+    the synthesis paragraph. Omitted entirely when the item has no evolution
+    (no qualifying earlier-issue relatives were found)."""
+    evolution = item_doc.get("evolution")
+    stages = (evolution or {}).get("stages") or []
+    if not stages:
+        return []
+
+    available_width = A4[0] - 2 * LEFT_RIGHT_MARGIN
+    per_row = max(1, int(available_width // EVOLUTION_STAGE_WIDTH))
+
+    flow: list = [
+        Spacer(1, 10),
+        Paragraph("<b>Policy Evolution</b>", LABEL_STYLE),
+    ]
+    if evolution.get("theme_label"):
+        flow.append(Paragraph(_pdf_safe(evolution["theme_label"]), BODY_STYLE))
+    flow.append(Spacer(1, 4))
+
+    def stage_cell(stage: dict) -> list:
+        return [
+            Paragraph(_pdf_safe(stage.get("year", "")), EVOLUTION_YEAR_STYLE),
+            Paragraph(_pdf_safe(stage.get("label", "")), EVOLUTION_LABEL_STYLE),
+            Paragraph(_pdf_safe(stage.get("description", "")), EVOLUTION_DESC_STYLE),
+        ]
+
+    for i in range(0, len(stages), per_row):
+        row_stages = stages[i : i + per_row]
+        row_cells = [stage_cell(s) for s in row_stages]
+        table = Table([row_cells], colWidths=[EVOLUTION_STAGE_WIDTH] * len(row_cells))
+        table.setStyle(
+            TableStyle(
+                [
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("BOX", (0, 0), (-1, -1), 0.4, RULE_GREY),
+                    ("INNERGRID", (0, 0), (-1, -1), 0.4, RULE_GREY),
+                    ("TOPPADDING", (0, 0), (-1, -1), 4),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                ]
+            )
+        )
+        flow.append(table)
+        flow.append(Spacer(1, 2))
+
+    if evolution.get("synthesis"):
+        flow.append(Spacer(1, 4))
+        flow.append(Paragraph("<b>Synthesis</b>", LABEL_STYLE))
+        flow.append(Paragraph(_pdf_safe(evolution["synthesis"]), BODY_STYLE))
+
+    return flow
+
+
 def generate_item_pdf(item_doc: dict, ministry_map: dict[str, dict]) -> bytes:
     buffer = io.BytesIO()
     doc = _new_document(buffer)
@@ -166,6 +231,7 @@ def generate_item_pdf(item_doc: dict, ministry_map: dict[str, dict]) -> bytes:
         _item_metadata_table(item_doc, ministry_map),
     ]
     flow.extend(_sources_flowables(item_doc))
+    flow.extend(_evolution_flowables(item_doc))
 
     doc.build(flow, onFirstPage=_decorate_page, onLaterPages=_decorate_page)
     return buffer.getvalue()

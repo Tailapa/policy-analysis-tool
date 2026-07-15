@@ -1,17 +1,17 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Item, Issue } from '../types';
-import { ALL_ISSUES_ID, getDefaultPillarMeta } from '../constants';
+import { getDefaultPillarMeta } from '../constants';
 import { downloadItemsReportPdf } from '../api';
 import Pagination from './Pagination';
+import TrackingPeriodFilter from './TrackingPeriodFilter';
+import { useTrackingPeriodFilter } from '../hooks/useTrackingPeriodFilter';
 import {
   AlertTriangle,
   Search,
-  ChevronDown,
   X,
   ExternalLink,
   MapPin,
   Building2,
-  Calendar,
   Download,
   Loader2,
 } from 'lucide-react';
@@ -20,27 +20,27 @@ interface DraftsProps {
   onSelectItem: (item: Item) => void;
   theme: 'light' | 'dark';
   items?: Item[];
-  currentIssueId: string;
-  setCurrentIssueId: (id: string) => void;
   issues: Issue[];
+  isLoading?: boolean;
 }
 
-export default function Drafts({ onSelectItem, theme, items, currentIssueId, setCurrentIssueId, issues }: DraftsProps) {
+export default function Drafts({ onSelectItem, theme, items, issues }: DraftsProps) {
   const isDark = theme === 'dark';
-  const activeItems = items || [];
+  const allItems = items || [];
+  const trackingPeriod = useTrackingPeriodFilter(issues);
   const [searchQuery, setSearchQuery] = useState('');
-  const [issueDropdownOpen, setIssueDropdownOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
-  const isAggregate = currentIssueId === ALL_ISSUES_ID;
-  const activeIssueData = issues.find(issue => issue.id === currentIssueId);
-  const issueBadgeLabel = isAggregate ? 'All Issues' : activeIssueData?.label;
+  const issueBadgeLabel = trackingPeriod.isAllIssues
+    ? 'All Issues'
+    : `${trackingPeriod.matchingIssuesCount} Issue${trackingPeriod.matchingIssuesCount === 1 ? '' : 's'} Selected`;
 
   const defaultPillarMeta = getDefaultPillarMeta(isDark);
 
   const draftItems = useMemo(() => {
-    const drafts = activeItems.filter(item => item.isDraft);
+    const periodItems = trackingPeriod.filterItemsByPeriod(allItems);
+    const drafts = periodItems.filter(item => item.isDraft);
     if (!searchQuery.trim()) return drafts;
     const query = searchQuery.toLowerCase();
     return drafts.filter(item =>
@@ -48,14 +48,14 @@ export default function Drafts({ onSelectItem, theme, items, currentIssueId, set
       item.description.toLowerCase().includes(query) ||
       item.ministry.toLowerCase().includes(query)
     );
-  }, [activeItems, searchQuery]);
+  }, [allItems, searchQuery, trackingPeriod.matchingIssueIds]);
 
   const DRAFTS_PAGE_SIZE = 6;
   const [draftsPage, setDraftsPage] = useState(1);
 
   useEffect(() => {
     setDraftsPage(1);
-  }, [searchQuery, activeItems]);
+  }, [searchQuery, allItems, trackingPeriod.matchingIssueIds]);
 
   const draftsTotalPages = Math.max(1, Math.ceil(draftItems.length / DRAFTS_PAGE_SIZE));
   const paginatedDraftItems = useMemo(() => {
@@ -98,61 +98,7 @@ export default function Drafts({ onSelectItem, theme, items, currentIssueId, set
             </p>
           </div>
 
-          {/* Dynamic Issue Selection Filter */}
-          <div className="relative shrink-0">
-            <label className="block text-[10px] font-extrabold text-zinc-400 uppercase tracking-wider mb-1.5">
-              Browse Tracking Period
-            </label>
-            <button
-              onClick={() => setIssueDropdownOpen(!issueDropdownOpen)}
-              className={`px-4 py-2.5 rounded-full border text-xs font-bold flex items-center gap-2 cursor-pointer transition-all shadow-md ${
-                isDark
-                  ? 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-indigo-400 hover:text-indigo-300'
-                  : 'bg-white border-zinc-200 hover:bg-zinc-50 text-indigo-600 hover:text-indigo-700'
-              }`}
-            >
-              <Calendar size={13} />
-              <span>{issueBadgeLabel}</span>
-              <ChevronDown size={12} className="text-zinc-400" />
-            </button>
-
-            {issueDropdownOpen && (
-              <div className={`absolute left-0 mt-2 border rounded-2xl shadow-2xl w-64 z-30 py-1.5 text-xs transition-all ${
-                isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-800'
-              }`}>
-                <button
-                  onClick={() => {
-                    setCurrentIssueId(ALL_ISSUES_ID);
-                    setIssueDropdownOpen(false);
-                  }}
-                  className={`w-full text-left px-4 py-2.5 flex flex-col gap-0.5 border-b transition-colors ${
-                    isDark ? 'hover:bg-zinc-800 border-zinc-800' : 'hover:bg-zinc-50 border-zinc-100'
-                  } ${isAggregate ? 'bg-indigo-500/10 font-bold text-indigo-600 dark:text-indigo-400' : ''}`}
-                >
-                  <span className="font-bold">All Issues</span>
-                  <span className="text-[10px] text-zinc-400">Aggregate across all {issues.length} published issues</span>
-                </button>
-                {issues.map((issue) => {
-                  const isSelected = issue.id === currentIssueId;
-                  return (
-                    <button
-                      key={issue.id}
-                      onClick={() => {
-                        setCurrentIssueId(issue.id);
-                        setIssueDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-4 py-2.5 flex flex-col gap-0.5 transition-colors ${
-                        isDark ? 'hover:bg-zinc-800' : 'hover:bg-zinc-50'
-                      } ${isSelected ? 'bg-indigo-500/10 font-bold text-indigo-600 dark:text-indigo-400' : ''}`}
-                    >
-                      <span className="font-bold">{issue.label}</span>
-                      <span className="text-[10px] text-zinc-400">{issue.dateRange} ({issue.itemsCount} updates)</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <TrackingPeriodFilter issues={issues} theme={theme} filter={trackingPeriod} />
         </div>
 
         {/* Download + Search */}

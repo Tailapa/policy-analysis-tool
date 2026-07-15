@@ -38,7 +38,7 @@ async def list_items(
     issue_id: Optional[str] = None,
     q: Optional[str] = None,
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=1000),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ):
     query: dict = {}

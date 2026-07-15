@@ -65,7 +65,7 @@ async function fetchAllPages(baseParams: Record<string, string>): Promise<Item[]
   // Overview/Ministries do their own client-side filter+paginate over the
   // full set, so pull every page up front.
   while (true) {
-    const params = new URLSearchParams({ ...baseParams, page: String(page), page_size: '100' });
+    const params = new URLSearchParams({ ...baseParams, page: String(page), page_size: '1000' });
     const data = await request<PaginatedItems>(`/api/items?${params.toString()}`);
     all.push(...data.items);
     if (page >= data.total_pages) break;

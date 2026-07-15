@@ -3,6 +3,8 @@ import { Ministry, MinistryCategory, Item, Pillar, Status, Impact, Issue } from 
 import { ALL_ISSUES_ID, getDefaultPillarMeta } from '../constants';
 import { downloadItemsReportPdf } from '../api';
 import Pagination from './Pagination';
+import TrackingPeriodFilter from './TrackingPeriodFilter';
+import { useTrackingPeriodFilter } from '../hooks/useTrackingPeriodFilter';
 import {
   Building2,
   Coins,
@@ -49,7 +51,8 @@ import {
   MapPin,
   Calendar,
   Download,
-  Loader2
+  Loader2,
+  Check
 } from 'lucide-react';
 
 interface MinistriesProps {
@@ -60,6 +63,7 @@ interface MinistriesProps {
   setSelectedMinistry: (ministry: string | undefined) => void;
   theme: 'light' | 'dark';
   items?: Item[];
+  allItems?: Item[];
   currentIssueId: string;
   setCurrentIssueId: (id: string) => void;
   issues: Issue[];
@@ -75,6 +79,7 @@ export default function Ministries({
   setSelectedMinistry,
   theme,
   items,
+  allItems,
   currentIssueId,
   setCurrentIssueId,
   issues,
@@ -83,6 +88,7 @@ export default function Ministries({
 }: MinistriesProps) {
   const isDark = theme === 'dark';
   const activeItems = items || [];
+  const trackingPeriod = useTrackingPeriodFilter(issues);
   const [searchQuery, setSearchQuery] = useState('');
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -90,11 +96,24 @@ export default function Ministries({
   const DIRECTORY_PAGE_SIZE = 9;
   const [directoryPage, setDirectoryPage] = useState(1);
 
-  // Scoped filters inside ministry detail
-  const [selectedTheme, setSelectedTheme] = useState<Pillar | undefined>(undefined);
-  const [selectedStatus, setSelectedStatus] = useState<Status | undefined>(undefined);
-  const [selectedImpact, setSelectedImpact] = useState<Impact | undefined>(undefined);
+  // Scoped filters inside ministry detail — multi-select (OR within each
+  // category, AND across categories), matching Overview's filter pattern.
+  const [selectedThemes, setSelectedThemes] = useState<Pillar[]>([]);
+  const [selectedStatuses, setSelectedStatuses] = useState<Status[]>([]);
+  const [selectedImpacts, setSelectedImpacts] = useState<Impact[]>([]);
   const [innerQuery, setInnerQuery] = useState('');
+
+  const pillLabel = (names: string[], allLabel: string) =>
+    names.length === 0 ? allLabel : names.length === 1 ? names[0] : `${names.length} selected`;
+  const toggleTheme = (name: Pillar) => {
+    setSelectedThemes(prev => (prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]));
+  };
+  const toggleStatus = (name: Status) => {
+    setSelectedStatuses(prev => (prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]));
+  };
+  const toggleImpact = (name: Impact) => {
+    setSelectedImpacts(prev => (prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]));
+  };
 
   // Dropdown states
   const [themeDropdownOpen, setThemeDropdownOpen] = useState(false);
@@ -195,14 +214,17 @@ export default function Ministries({
     return filteredMinistries.slice(start, start + DIRECTORY_PAGE_SIZE);
   }, [filteredMinistries, directoryPage, isPaginated]);
 
-  // 2. Filtered list of items inside selected ministry
+  // 2. Filtered list of items inside selected ministry — sourced from the
+  // full cross-issue item set (not the directory's single-issue `items`),
+  // since the detail view's own Tracking Period filter can span issues.
   const scopedItems = useMemo(() => {
     if (!selectedMinistry) return [];
-    return activeItems.filter(item => {
+    const periodItems = trackingPeriod.filterItemsByPeriod(allItems || []);
+    return periodItems.filter(item => {
       if (!(item.linkedMinistries || []).some(lm => lm.name === selectedMinistry)) return false;
-      if (selectedTheme && item.theme !== selectedTheme) return false;
-      if (selectedStatus && item.status !== selectedStatus) return false;
-      if (selectedImpact && item.impact !== selectedImpact) return false;
+      if (selectedThemes.length > 0 && !selectedThemes.includes(item.theme)) return false;
+      if (selectedStatuses.length > 0 && (!item.status || !selectedStatuses.includes(item.status))) return false;
+      if (selectedImpacts.length > 0 && (!item.impact || !selectedImpacts.includes(item.impact))) return false;
       if (innerQuery.trim() !== '') {
         const query = innerQuery.toLowerCase();
         const matchesTitle = item.title.toLowerCase().includes(query);
@@ -212,7 +234,20 @@ export default function Ministries({
       }
       return true;
     });
-  }, [selectedMinistry, selectedTheme, selectedStatus, selectedImpact, innerQuery]);
+  }, [selectedMinistry, selectedThemes, selectedStatuses, selectedImpacts, innerQuery, allItems, trackingPeriod.matchingIssueIds]);
+
+  const SCOPED_PAGE_SIZE = 6;
+  const [scopedPage, setScopedPage] = useState(1);
+
+  useEffect(() => {
+    setScopedPage(1);
+  }, [selectedMinistry, selectedThemes, selectedStatuses, selectedImpacts, innerQuery, trackingPeriod.matchingIssueIds]);
+
+  const scopedTotalPages = Math.max(1, Math.ceil(scopedItems.length / SCOPED_PAGE_SIZE));
+  const paginatedScopedItems = useMemo(() => {
+    const start = (scopedPage - 1) * SCOPED_PAGE_SIZE;
+    return scopedItems.slice(start, start + SCOPED_PAGE_SIZE);
+  }, [scopedItems, scopedPage]);
 
   const activeMinistryData = useMemo(() => {
     return ministries.find(m => m.name === selectedMinistry);
@@ -236,10 +271,11 @@ export default function Ministries({
   };
 
   const handleResetInnerFilters = () => {
-    setSelectedTheme(undefined);
-    setSelectedStatus(undefined);
-    setSelectedImpact(undefined);
+    setSelectedThemes([]);
+    setSelectedStatuses([]);
+    setSelectedImpacts([]);
     setInnerQuery('');
+    trackingPeriod.resetTrackingPeriod();
   };
 
   return (
@@ -432,6 +468,8 @@ export default function Ministries({
               </div>
             </div>
 
+            <TrackingPeriodFilter issues={issues} theme={theme} filter={trackingPeriod} />
+
             <div className="flex items-center gap-3 flex-wrap justify-end">
               {downloadError && <span className="text-xs font-bold text-rose-500">{downloadError}</span>}
               <span className={`text-xs font-bold px-4 py-2 rounded-full border ${
@@ -439,7 +477,7 @@ export default function Ministries({
                   ? 'text-indigo-300 bg-indigo-950/40 border-indigo-900/40'
                   : 'text-indigo-800 bg-indigo-50 border-indigo-200 shadow-sm'
               }`}>
-                {activeItems.filter(item => (item.linkedMinistries || []).some(lm => lm.name === selectedMinistry)).length} active updates
+                {scopedItems.length} active updates
               </span>
               <button
                 onClick={handleDownloadPdf}
@@ -464,7 +502,7 @@ export default function Ministries({
             isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-800'
           }`}>
             <div className="flex flex-wrap gap-2 items-center">
-              {/* Theme filter */}
+              {/* Theme filter (multi-select) */}
               <div className="relative">
                 <button
                   onClick={() => {
@@ -473,53 +511,55 @@ export default function Ministries({
                     setImpactDropdownOpen(false);
                   }}
                   className={`px-4 py-2 text-xs font-bold rounded-full flex items-center gap-1.5 border cursor-pointer transition-all shadow-sm ${
-                    isDark 
-                      ? 'bg-zinc-800 border-zinc-700 hover:bg-zinc-750 text-zinc-100' 
+                    isDark
+                      ? 'bg-zinc-800 border-zinc-700 hover:bg-zinc-750 text-zinc-100'
                       : 'bg-zinc-50 border-zinc-200 hover:bg-zinc-100 text-zinc-800'
-                  }`}
+                  } ${selectedThemes.length > 0 ? 'ring-2 ring-emerald-500' : ''}`}
                 >
                   <SlidersHorizontal size={12} className="text-emerald-500" />
-                  <span>{selectedTheme || 'Theme: All'}</span>
+                  <span>{pillLabel(selectedThemes, 'Theme: All')}</span>
                   <ChevronDown size={11} className="text-zinc-400" />
                 </button>
                 {themeDropdownOpen && (
-                  <div className={`absolute top-11 left-0 border rounded-2xl shadow-2xl w-56 z-30 py-1.5 text-xs transition-all ${
+                  <div className={`absolute top-11 left-0 border rounded-2xl shadow-2xl w-56 max-h-64 overflow-y-auto z-30 py-1.5 text-xs transition-all ${
                     isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-800'
                   }`}>
                     <button
-                      onClick={() => {
-                        setSelectedTheme(undefined);
-                        setThemeDropdownOpen(false);
-                      }}
+                      onClick={() => setSelectedThemes([])}
                       className={`w-full text-left px-3 py-2 font-bold border-b text-emerald-500 ${
                         isDark ? 'hover:bg-zinc-800 border-zinc-800' : 'hover:bg-zinc-50 border-zinc-100'
                       }`}
                     >
                       Clear Theme Filter
                     </button>
-                    {pillars.map((theme) => (
-                      <button
-                        key={theme}
-                        onClick={() => {
-                          setSelectedTheme(theme);
-                          setThemeDropdownOpen(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 flex items-center gap-1.5 ${
-                          isDark ? 'hover:bg-zinc-800' : 'hover:bg-zinc-50'
-                        }`}
-                      >
-                        <span
-                          className="w-2 h-2 rounded-full block"
-                          style={{ backgroundColor: (pillarMeta[theme] ?? defaultPillarMeta).color }}
-                        ></span>
-                        <span>{theme}</span>
-                      </button>
-                    ))}
+                    {pillars.map((theme) => {
+                      const checked = selectedThemes.includes(theme);
+                      return (
+                        <button
+                          key={theme}
+                          onClick={() => toggleTheme(theme)}
+                          className={`w-full text-left px-3 py-2 flex items-center gap-1.5 ${
+                            isDark ? 'hover:bg-zinc-800' : 'hover:bg-zinc-50'
+                          } ${checked ? 'bg-emerald-500/10 font-bold text-emerald-600 dark:text-emerald-400' : ''}`}
+                        >
+                          <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                            checked ? 'bg-emerald-600 border-emerald-600' : isDark ? 'border-zinc-600' : 'border-zinc-300'
+                          }`}>
+                            {checked && <Check size={10} className="text-white" />}
+                          </span>
+                          <span
+                            className="w-2 h-2 rounded-full block shrink-0"
+                            style={{ backgroundColor: (pillarMeta[theme] ?? defaultPillarMeta).color }}
+                          ></span>
+                          <span className="flex-1">{theme}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
 
-              {/* Status filter */}
+              {/* Status filter (multi-select) */}
               <div className="relative">
                 <button
                   onClick={() => {
@@ -528,50 +568,52 @@ export default function Ministries({
                     setImpactDropdownOpen(false);
                   }}
                   className={`px-3 py-1.5 rounded-full border text-xs font-semibold cursor-pointer transition-all ${
-                    selectedStatus 
-                      ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 font-bold' 
-                      : isDark 
-                        ? 'border-zinc-700 text-zinc-400 hover:border-zinc-500' 
+                    selectedStatuses.length > 0
+                      ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 font-bold'
+                      : isDark
+                        ? 'border-zinc-700 text-zinc-400 hover:border-zinc-500'
                         : 'border-zinc-300 text-zinc-600 hover:border-zinc-400 shadow-sm'
                   }`}
                 >
-                  <span>{selectedStatus || 'Status'}</span>
+                  <span>{pillLabel(selectedStatuses, 'Status')}</span>
                   <ChevronDown size={10} className="inline ml-1" />
                 </button>
                 {statusDropdownOpen && (
-                  <div className={`absolute top-9 left-0 border rounded-2xl shadow-2xl w-36 z-30 py-1.5 text-xs transition-all ${
+                  <div className={`absolute top-9 left-0 border rounded-2xl shadow-2xl w-40 z-30 py-1.5 text-xs transition-all ${
                     isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-800'
                   }`}>
                     <button
-                      onClick={() => {
-                        setSelectedStatus(undefined);
-                        setStatusDropdownOpen(false);
-                      }}
+                      onClick={() => setSelectedStatuses([])}
                       className={`w-full text-left px-3 py-2 font-bold border-b ${
                         isDark ? 'hover:bg-zinc-800 border-zinc-800' : 'hover:bg-zinc-50 border-zinc-100'
                       }`}
                     >
                       All Statuses
                     </button>
-                    {(['Initiated', 'Completed', 'Announced'] as Status[]).map((st) => (
-                      <button
-                        key={st}
-                        onClick={() => {
-                          setSelectedStatus(st);
-                          setStatusDropdownOpen(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 ${
-                          isDark ? 'hover:bg-zinc-800' : 'hover:bg-zinc-50'
-                        }`}
-                      >
-                        {st}
-                      </button>
-                    ))}
+                    {(['Initiated', 'Completed', 'Announced'] as Status[]).map((st) => {
+                      const checked = selectedStatuses.includes(st);
+                      return (
+                        <button
+                          key={st}
+                          onClick={() => toggleStatus(st)}
+                          className={`w-full text-left px-3 py-2 flex items-center gap-2 ${
+                            isDark ? 'hover:bg-zinc-800' : 'hover:bg-zinc-50'
+                          } ${checked ? 'bg-indigo-500/10 font-bold text-indigo-600 dark:text-indigo-400' : ''}`}
+                        >
+                          <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                            checked ? 'bg-indigo-600 border-indigo-600' : isDark ? 'border-zinc-600' : 'border-zinc-300'
+                          }`}>
+                            {checked && <Check size={10} className="text-white" />}
+                          </span>
+                          <span>{st}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
 
-              {/* Impact filter */}
+              {/* Impact filter (multi-select) */}
               <div className="relative">
                 <button
                   onClick={() => {
@@ -580,51 +622,53 @@ export default function Ministries({
                     setStatusDropdownOpen(false);
                   }}
                   className={`px-3 py-1.5 rounded-full border text-xs font-semibold cursor-pointer transition-all ${
-                    selectedImpact 
-                      ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 font-bold' 
-                      : isDark 
-                        ? 'border-zinc-700 text-zinc-400 hover:border-zinc-500' 
+                    selectedImpacts.length > 0
+                      ? 'bg-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 font-bold'
+                      : isDark
+                        ? 'border-zinc-700 text-zinc-400 hover:border-zinc-500'
                         : 'border-zinc-300 text-zinc-600 hover:border-zinc-400 shadow-sm'
                   }`}
                 >
-                  <span>{selectedImpact ? `${selectedImpact} Impact` : 'Impact'}</span>
+                  <span>{pillLabel(selectedImpacts, 'Impact')}</span>
                   <ChevronDown size={10} className="inline ml-1" />
                 </button>
                 {impactDropdownOpen && (
-                  <div className={`absolute top-9 left-0 border rounded-2xl shadow-2xl w-36 z-30 py-1.5 text-xs transition-all ${
+                  <div className={`absolute top-9 left-0 border rounded-2xl shadow-2xl w-40 z-30 py-1.5 text-xs transition-all ${
                     isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-800'
                   }`}>
                     <button
-                      onClick={() => {
-                        setSelectedImpact(undefined);
-                        setImpactDropdownOpen(false);
-                      }}
+                      onClick={() => setSelectedImpacts([])}
                       className={`w-full text-left px-3 py-2 font-bold border-b ${
                         isDark ? 'hover:bg-zinc-800 border-zinc-800' : 'hover:bg-zinc-50 border-zinc-100'
                       }`}
                     >
                       All Impacts
                     </button>
-                    {(['High', 'Medium', 'Low'] as Impact[]).map((imp) => (
-                      <button
-                        key={imp}
-                        onClick={() => {
-                          setSelectedImpact(imp);
-                          setImpactDropdownOpen(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 ${
-                          isDark ? 'hover:bg-zinc-800' : 'hover:bg-zinc-50'
-                        }`}
-                      >
-                        {imp} Impact
-                      </button>
-                    ))}
+                    {(['High', 'Medium', 'Low'] as Impact[]).map((imp) => {
+                      const checked = selectedImpacts.includes(imp);
+                      return (
+                        <button
+                          key={imp}
+                          onClick={() => toggleImpact(imp)}
+                          className={`w-full text-left px-3 py-2 flex items-center gap-2 ${
+                            isDark ? 'hover:bg-zinc-800' : 'hover:bg-zinc-50'
+                          } ${checked ? 'bg-indigo-500/10 font-bold text-indigo-600 dark:text-indigo-400' : ''}`}
+                        >
+                          <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                            checked ? 'bg-indigo-600 border-indigo-600' : isDark ? 'border-zinc-600' : 'border-zinc-300'
+                          }`}>
+                            {checked && <Check size={10} className="text-white" />}
+                          </span>
+                          <span>{imp} Impact</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
 
               {/* Reset inside filters */}
-              {(selectedTheme || selectedStatus || selectedImpact || innerQuery) && (
+              {(selectedThemes.length > 0 || selectedStatuses.length > 0 || selectedImpacts.length > 0 || innerQuery || !trackingPeriod.isAllIssues) && (
                 <button
                   onClick={handleResetInnerFilters}
                   className="px-2 py-1 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer flex items-center gap-1"
@@ -672,8 +716,9 @@ export default function Ministries({
               </button>
             </div>
           ) : (
+            <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {scopedItems.map((item) => {
+              {paginatedScopedItems.map((item) => {
                 const meta = pillarMeta[item.theme] ?? defaultPillarMeta;
                 const isState = item.geography.startsWith('state:');
                 const stateName = isState ? item.geography.replace('state:', '').trim() : '';
@@ -734,6 +779,14 @@ export default function Ministries({
                   </div>
                 );
               })}
+            </div>
+
+            <Pagination
+              currentPage={scopedPage}
+              totalPages={scopedTotalPages}
+              onPageChange={setScopedPage}
+              theme={theme}
+            />
             </div>
           )}
         </div>

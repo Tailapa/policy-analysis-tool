@@ -28,6 +28,7 @@ export interface DraftVerification {
 
 export interface Item {
   id: string;
+  issueId: string;
   title: string;
   description: string;
   ministry: string;

@@ -41,6 +41,10 @@ class EvolutionBackfillResultOut(BaseModel):
     chains_generated: int
 
 
+class EmbeddingBackfillResultOut(BaseModel):
+    embeddings_generated: int
+
+
 class ItemEvolutionOut(BaseModel):
     theme_label: str
     stages: list[EvolutionStageResult]

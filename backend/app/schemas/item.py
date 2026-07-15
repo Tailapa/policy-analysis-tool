@@ -32,6 +32,7 @@ class ItemOut(BaseModel):
     """Shape matches frontend src/types.ts Item exactly."""
 
     id: str
+    issueId: str
     title: str
     description: str
     ministry: str
@@ -93,6 +94,7 @@ def serialize_item(doc: dict, ministry_map: dict[str, dict]) -> ItemOut:
 
     return ItemOut(
         id=str(doc["_id"]),
+        issueId=str(doc["issue_id"]),
         title=doc["title"],
         description=doc["description"],
         ministry=primary_name,

@@ -1,6 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Item, Pillar, Status, Impact, Subtype, Issue, Ministry } from '../types';
-import { ALL_ISSUES_ID, getDefaultPillarMeta } from '../constants';
+import { getDefaultPillarMeta } from '../constants';
+import Pagination from './Pagination';
+import TrackingPeriodFilter from './TrackingPeriodFilter';
+import { useTrackingPeriodFilter } from '../hooks/useTrackingPeriodFilter';
 import {
   Building2,
   Landmark,
@@ -22,8 +25,6 @@ interface OverviewProps {
   setSelectedMinistry: (ministry: string | undefined) => void;
   theme: 'light' | 'dark';
   items?: Item[];
-  currentIssueId: string;
-  setCurrentIssueId: (id: string) => void;
   issues: Issue[];
   ministries: Ministry[];
   pillars: string[];
@@ -36,17 +37,16 @@ export default function Overview({
   setSelectedMinistry,
   theme,
   items,
-  currentIssueId,
-  setCurrentIssueId,
   issues,
   ministries,
   pillars,
   isLoading
 }: OverviewProps) {
   const isDark = theme === 'dark';
-  const activeItems = items || [];
-  // Filters state — Ministry/Regulatory Body/Theme are multi-select (arrays,
-  // OR'd within each category); Status/Impact/Type stay single-select.
+  const allItems = items || [];
+  // Filters state — Ministry/Regulatory Body/Theme/Year/Month/Issue are all
+  // multi-select (arrays, OR'd within each category); Status/Impact/Type
+  // stay single-select.
   const [selectedMinistryNames, setSelectedMinistryNames] = useState<string[]>([]);
   const [selectedRegulatoryBodyNames, setSelectedRegulatoryBodyNames] = useState<string[]>([]);
   const [selectedThemeNames, setSelectedThemeNames] = useState<string[]>([]);
@@ -55,6 +55,16 @@ export default function Overview({
   const [selectedImpact, setSelectedImpact] = useState<Impact | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Tracking Period — Year / Month / specific Issue multi-select filters,
+  // shared with Ministries/Regulatory Bodies (detail view) and Drafts.
+  const trackingPeriod = useTrackingPeriodFilter(issues);
+  const { isAllIssues, matchingIssueIds, matchingIssuesCount } = trackingPeriod;
+
+  const activeItems = useMemo(
+    () => trackingPeriod.filterItemsByPeriod(allItems),
+    [allItems, matchingIssueIds]
+  );
 
   // Date Filter states
   const [selectedDateFilter, setSelectedDateFilter] = useState<'all' | 'last-3-months' | 'last-6-months' | 'last-1-year' | 'custom'>('all');
@@ -69,7 +79,6 @@ export default function Overview({
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [impactDropdownOpen, setImpactDropdownOpen] = useState(false);
   const [subtypeDropdownOpen, setSubtypeDropdownOpen] = useState(false);
-  const [issueDropdownOpen, setIssueDropdownOpen] = useState(false);
 
   const closeAllFilterDropdowns = () => {
     setMinistryDropdownOpen(false);
@@ -316,35 +325,16 @@ export default function Overview({
     setCustomStartDate('');
     setCustomEndDate('');
     setSearchQuery('');
+    trackingPeriod.resetTrackingPeriod();
     setCurrentPage(1);
   };
 
-  // Dynamic timeline dates and highlights based on selected issue
-  const isFirstHalf = currentIssueId.endsWith('-i');
-  const monthName = currentIssueId.includes('june') ? 'Jun' : 'May';
-  const timelineDates = isFirstHalf ? [1, 4, 7, 10, 13, 15] : [16, 19, 22, 25, 28, 30];
-
-  const timelineHighlights = useMemo(() => {
-    const highlights: Record<number, { title: string; theme: Pillar; id: string }> = {};
-    timelineDates.forEach(date => {
-      const found = activeItems.find(item => item.date === `${date} ${monthName}`);
-      if (found) {
-        highlights[date] = { title: found.title, theme: found.theme, id: found.id };
-      } else {
-        // Fallback: find any item starting with the same day
-        const approx = activeItems.find(item => item.date.startsWith(`${date}`));
-        if (approx) {
-          highlights[date] = { title: approx.title, theme: approx.theme, id: approx.id };
-        }
-      }
-    });
-    return highlights;
-  }, [activeItems, timelineDates, monthName]);
-
-  const isAggregate = currentIssueId === ALL_ISSUES_ID;
-  const activeIssueData = issues.find(issue => issue.id === currentIssueId);
-  const issueBadgeLabel = isAggregate ? 'All Issues' : activeIssueData?.label;
-  const issueHeading = isAggregate ? `All ${issues.length} Issues` : activeIssueData?.dateRange;
+  const issueBadgeLabel = isAllIssues ? 'All Issues' : `${matchingIssuesCount} Issue${matchingIssuesCount === 1 ? '' : 's'} Selected`;
+  const issueHeading = isAllIssues
+    ? `All ${issues.length} Issues`
+    : matchingIssuesCount === 1
+      ? issues.find(i => matchingIssueIds?.has(i.id))?.dateRange
+      : `${matchingIssuesCount} Issues Selected`;
 
   return (
     <div className="space-y-6">
@@ -380,61 +370,7 @@ export default function Overview({
             </p>
           </div>
 
-          {/* Dynamic Issue Selection Filter */}
-          <div className="relative shrink-0">
-            <label className="block text-[10px] font-extrabold text-zinc-400 uppercase tracking-wider mb-1.5">
-              Browse Tracking Period
-            </label>
-            <button
-              onClick={() => setIssueDropdownOpen(!issueDropdownOpen)}
-              className={`px-4 py-2.5 rounded-full border text-xs font-bold flex items-center gap-2 cursor-pointer transition-all shadow-md ${
-                isDark 
-                  ? 'bg-zinc-800 border-zinc-700 hover:bg-zinc-750 text-indigo-400 hover:text-indigo-300' 
-                  : 'bg-white border-zinc-200 hover:bg-zinc-50 text-indigo-600 hover:text-indigo-700'
-              }`}
-            >
-              <Calendar size={13} />
-              <span>{issueBadgeLabel}</span>
-              <ChevronDown size={12} className="text-zinc-400" />
-            </button>
-
-            {issueDropdownOpen && (
-              <div className={`absolute left-0 mt-2 border rounded-2xl shadow-2xl w-64 z-30 py-1.5 text-xs transition-all ${
-                isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-800'
-              }`}>
-                <button
-                  onClick={() => {
-                    setCurrentIssueId(ALL_ISSUES_ID);
-                    setIssueDropdownOpen(false);
-                  }}
-                  className={`w-full text-left px-4 py-2.5 flex flex-col gap-0.5 border-b transition-colors ${
-                    isDark ? 'hover:bg-zinc-800 border-zinc-800' : 'hover:bg-zinc-50 border-zinc-100'
-                  } ${isAggregate ? 'bg-indigo-500/10 font-bold text-indigo-600 dark:text-indigo-400' : ''}`}
-                >
-                  <span className="font-bold">All Issues</span>
-                  <span className="text-[10px] text-zinc-400">Aggregate across all {issues.length} published issues</span>
-                </button>
-                {issues.map((issue) => {
-                  const isSelected = issue.id === currentIssueId;
-                  return (
-                    <button
-                      key={issue.id}
-                      onClick={() => {
-                        setCurrentIssueId(issue.id);
-                        setIssueDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-4 py-2.5 flex flex-col gap-0.5 transition-colors ${
-                        isDark ? 'hover:bg-zinc-800' : 'hover:bg-zinc-50'
-                      } ${isSelected ? 'bg-indigo-500/10 font-bold text-indigo-600 dark:text-indigo-400' : ''}`}
-                    >
-                      <span className="font-bold">{issue.label}</span>
-                      <span className="text-[10px] text-zinc-400">{issue.dateRange} ({issue.itemsCount} updates)</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <TrackingPeriodFilter issues={issues} theme={theme} filter={trackingPeriod} />
         </div>
         
         {/* Three Stats */}
@@ -1024,7 +960,7 @@ export default function Overview({
           </div>
 
           {/* Reset Filters */}
-          {(selectedMinistryNames.length > 0 || selectedRegulatoryBodyNames.length > 0 || selectedThemeNames.length > 0 || selectedSubtype || selectedStatus || selectedImpact || selectedDateFilter !== 'all' || customStartDate || customEndDate || searchQuery) && (
+          {(selectedMinistryNames.length > 0 || selectedRegulatoryBodyNames.length > 0 || selectedThemeNames.length > 0 || selectedSubtype || selectedStatus || selectedImpact || selectedDateFilter !== 'all' || customStartDate || customEndDate || searchQuery || !isAllIssues) && (
             <button
               onClick={handleClearFilters}
               className="px-2.5 py-1 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer flex items-center gap-1"
@@ -1162,52 +1098,15 @@ export default function Overview({
             })}
           </div>
 
-          {/* Simple Dynamic Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-8">
-              <button
-                disabled={currentPage === 1}
-                onClick={() => handlePageChange(currentPage - 1)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
-                  currentPage === 1
-                    ? 'border-zinc-800/40 text-zinc-400 cursor-not-allowed'
-                    : isDark 
-                      ? 'border-zinc-800 text-zinc-300 hover:bg-zinc-800 cursor-pointer' 
-                      : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50 cursor-pointer shadow-sm'
-                }`}
-              >
-                Previous
-              </button>
-              {Array.from({ length: totalPages }).map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => handlePageChange(i + 1)}
-                  className={`w-9 h-9 rounded-xl text-xs font-bold border transition-all ${
-                    currentPage === i + 1
-                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/10'
-                      : isDark
-                        ? 'border-zinc-800 text-zinc-300 hover:bg-zinc-800 cursor-pointer'
-                        : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50 cursor-pointer shadow-sm'
-                  }`}
-                >
-                  {i + 1}
-                </button>
-              ))}
-              <button
-                disabled={currentPage === totalPages}
-                onClick={() => handlePageChange(currentPage + 1)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
-                  currentPage === totalPages
-                    ? 'border-zinc-800/40 text-zinc-400 cursor-not-allowed'
-                    : isDark 
-                      ? 'border-zinc-800 text-zinc-300 hover:bg-zinc-800 cursor-pointer' 
-                      : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50 cursor-pointer shadow-sm'
-                }`}
-              >
-                Next
-              </button>
-            </div>
-          )}
+          {/* Pagination */}
+          <div className="mt-8">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              theme={theme}
+            />
+          </div>
         </>
       )}
     </div>
