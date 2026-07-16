@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from pymongo.errors import DuplicateKeyError
 
 from app.core.config import get_settings
-from app.core.db import COLLECTIONS, get_db
+from app.core.db import CATEGORY_TO_COLLECTION, COLLECTIONS, ENTITY_COLLECTIONS, get_db
 from app.core.deps import get_current_admin
 from app.core.utils import parse_object_id
 from app.schemas.item import ItemOut, serialize_item
@@ -21,7 +21,7 @@ from app.schemas.upload import ManualItemCreate
 from app.services.draft_detection import verify_draft_status
 from app.services.geo_tagger import parse_geography_string
 from app.services.lookups import get_item_counts_by_ministry, get_latest_issue_id, get_ministry_map, get_pillar_names
-from app.services.ministry_resolver import resolve_ministry
+from app.services.ministry_resolver import find_entity_by_id, resolve_ministry
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -36,7 +36,10 @@ async def admin_list_ministries(
     db: AsyncIOMotorDatabase = Depends(get_db),
     _admin: dict = Depends(get_current_admin),
 ):
-    docs = [doc async for doc in db[COLLECTIONS["ministries"]].find().sort("name", 1)]
+    docs: list[dict] = []
+    for collection_name in ENTITY_COLLECTIONS:
+        docs.extend([doc async for doc in db[collection_name].find()])
+    docs.sort(key=lambda d: d["name"])
     counts = await get_item_counts_by_ministry(db)
     return [serialize_ministry(doc, counts.get(doc["_id"], 0)) for doc in docs]
 
@@ -47,12 +50,13 @@ async def create_ministry(
     db: AsyncIOMotorDatabase = Depends(get_db),
     _admin: dict = Depends(get_current_admin),
 ):
+    collection_name = CATEGORY_TO_COLLECTION[payload.category]
     try:
-        result = await db[COLLECTIONS["ministries"]].insert_one(payload.model_dump())
+        result = await db[collection_name].insert_one(payload.model_dump())
     except DuplicateKeyError:
         raise HTTPException(status_code=409, detail="Ministry with this name already exists")
 
-    doc = await db[COLLECTIONS["ministries"]].find_one({"_id": result.inserted_id})
+    doc = await db[collection_name].find_one({"_id": result.inserted_id})
     return serialize_ministry(doc)
 
 
@@ -65,15 +69,33 @@ async def update_ministry(
 ):
     oid = parse_object_id(ministry_id, "Ministry not found")
     updates = {k: v for k, v in payload.model_dump().items() if v is not None}
+
+    current_doc = await find_entity_by_id(db, oid)
+    if not current_doc:
+        raise HTTPException(status_code=404, detail="Ministry not found")
+
+    current_collection = CATEGORY_TO_COLLECTION[current_doc.get("category") or "ministry"]
+    new_category = updates.get("category")
+    target_collection = CATEGORY_TO_COLLECTION[new_category] if new_category else current_collection
+
     if updates:
         try:
-            result = await db[COLLECTIONS["ministries"]].update_one({"_id": oid}, {"$set": updates})
+            if target_collection == current_collection:
+                result = await db[current_collection].update_one({"_id": oid}, {"$set": updates})
+                if result.matched_count == 0:
+                    raise HTTPException(status_code=404, detail="Ministry not found")
+            else:
+                # Category changed: the entity moves to a different collection,
+                # so it's a delete-from-old + insert-into-new preserving the
+                # same _id (policy_items reference it directly by id, not by
+                # collection).
+                moved_doc = {**current_doc, **updates}
+                await db[target_collection].insert_one(moved_doc)
+                await db[current_collection].delete_one({"_id": oid})
         except DuplicateKeyError:
             raise HTTPException(status_code=409, detail="Ministry with this name already exists")
-        if result.matched_count == 0:
-            raise HTTPException(status_code=404, detail="Ministry not found")
 
-    doc = await db[COLLECTIONS["ministries"]].find_one({"_id": oid})
+    doc = await db[target_collection].find_one({"_id": oid})
     if not doc:
         raise HTTPException(status_code=404, detail="Ministry not found")
     return serialize_ministry(doc)
@@ -86,7 +108,11 @@ async def delete_ministry(
     _admin: dict = Depends(get_current_admin),
 ):
     oid = parse_object_id(ministry_id, "Ministry not found")
-    result = await db[COLLECTIONS["ministries"]].delete_one({"_id": oid})
+    doc = await find_entity_by_id(db, oid)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Ministry not found")
+    collection_name = CATEGORY_TO_COLLECTION[doc.get("category") or "ministry"]
+    result = await db[collection_name].delete_one({"_id": oid})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Ministry not found")
 
@@ -106,8 +132,11 @@ async def update_item_ministries(
     additional_oids = [parse_object_id(mid, "Ministry not found") for mid in payload.additional_ministry_ids]
 
     all_oids = [primary_oid] + additional_oids
-    found = await db[COLLECTIONS["ministries"]].count_documents({"_id": {"$in": all_oids}})
-    if found != len(set(str(o) for o in all_oids)):
+    unique_oids = set(str(o) for o in all_oids)
+    found = 0
+    for collection_name in ENTITY_COLLECTIONS:
+        found += await db[collection_name].count_documents({"_id": {"$in": all_oids}})
+    if found != len(unique_oids):
         raise HTTPException(status_code=404, detail="One or more ministries/regulatory bodies not found")
 
     result = await db[COLLECTIONS["policy_items"]].update_one(

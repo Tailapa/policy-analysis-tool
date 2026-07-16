@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     # "openrouter" (OpenAI-compatible, routes to any model OpenRouter hosts).
     INTELLIGENCE_PROVIDER: str = "gemini"
     OPENROUTER_API_KEY: str = ""
-    OPENROUTER_MODEL: str = "openai/gpt-4o-mini"
+    OPENROUTER_MODEL: str = "google/gemini-3.1-flash-lite"
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
 
     SERPER_API_KEY: str = ""

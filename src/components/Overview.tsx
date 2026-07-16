@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Item, Pillar, Status, Impact, Subtype, Issue, Ministry } from '../types';
-import { getDefaultPillarMeta } from '../constants';
+import { getDefaultPillarMeta, getItemIssueLabel } from '../constants';
 import Pagination from './Pagination';
 import TrackingPeriodFilter from './TrackingPeriodFilter';
 import { useTrackingPeriodFilter } from '../hooks/useTrackingPeriodFilter';
@@ -98,7 +98,11 @@ export default function Overview({
   const stats = useMemo(() => {
     const total = activeItems.length || 1;
     const highImpact = activeItems.filter(i => i.impact === 'High').length;
-    const ministriesCount = new Set(activeItems.map(i => i.ministry)).size;
+    const ministriesCount = new Set(
+      activeItems
+        .filter(i => (i.linkedMinistries[0]?.category ?? 'ministry') === 'ministry')
+        .map(i => i.ministry)
+    ).size;
 
     return { total, highImpact, ministriesCount };
   }, [activeItems]);
@@ -366,7 +370,7 @@ export default function Overview({
     <div className="space-y-6">
       {/* Issue Header Row */}
       <div className={`p-8 rounded-[1.75rem] border shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-6 transition-all ${
-        isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
+        isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-[#caf0f8] border-[#ade8f4] shadow-cyan-900/10'
       }`}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 w-full lg:w-auto">
           <div>
@@ -391,7 +395,7 @@ export default function Overview({
             }`}>
               {issueHeading}
             </h2>
-            <p className={`text-sm mt-1 ${isDark ? 'text-zinc-400' : 'text-zinc-500 font-medium'}`}>
+            <p className={`text-sm mt-1 ${isDark ? 'text-zinc-400' : 'text-slate-600 font-medium'}`}>
               {stats.total} policy actions and administrative developments tracked
             </p>
           </div>
@@ -400,17 +404,17 @@ export default function Overview({
         </div>
         
         {/* Three Stats — sized to always fit in one row, no scrolling. */}
-        <div className={`flex items-center gap-2 sm:gap-4 divide-x ${isDark ? 'divide-zinc-800' : 'divide-zinc-200'}`}>
+        <div className={`flex items-center gap-2 sm:gap-4 divide-x ${isDark ? 'divide-zinc-800' : 'divide-[#ade8f4]'}`}>
           <div className="text-center pl-0 shrink-0">
-            <span className="block text-[9px] sm:text-[10px] font-semibold text-zinc-500 uppercase tracking-wider whitespace-nowrap">Active Ministries</span>
+            <span className={`block text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap ${isDark ? 'text-zinc-500' : 'text-slate-600'}`}>Active Ministries</span>
             <span className={`text-xl sm:text-2xl font-extrabold font-display ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>{stats.ministriesCount}</span>
           </div>
           <div className="text-center pl-2 sm:pl-4 shrink-0">
-            <span className="block text-[9px] sm:text-[10px] font-semibold text-zinc-500 uppercase tracking-wider whitespace-nowrap">High Impact</span>
+            <span className={`block text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap ${isDark ? 'text-zinc-500' : 'text-slate-600'}`}>High Impact</span>
             <span className={`text-xl sm:text-2xl font-extrabold font-display ${isDark ? 'text-rose-400' : 'text-rose-600'}`}>{stats.highImpact}</span>
           </div>
           <div className="text-center pl-2 sm:pl-4 shrink-0">
-            <span className="block text-[9px] sm:text-[10px] font-semibold text-zinc-500 uppercase tracking-wider whitespace-nowrap">Total Actions</span>
+            <span className={`block text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap ${isDark ? 'text-zinc-500' : 'text-slate-600'}`}>Total Actions</span>
             <span className={`text-xl sm:text-2xl font-extrabold font-display ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>{stats.total}</span>
           </div>
         </div>
@@ -1158,6 +1162,16 @@ export default function Overview({
                     }`}>
                       {item.date}
                     </span>
+
+                    {/* Issue Chip — which report issue (month, year, issue no.) this item was published in */}
+                    {getItemIssueLabel(item.issueId, issues) && (
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                        isDark ? 'bg-sky-950/40 text-sky-300 border-sky-800/50' : 'bg-sky-50 text-sky-700 border-sky-200'
+                      }`}>
+                        <Calendar size={9} />
+                        <span>{getItemIssueLabel(item.issueId, issues)}</span>
+                      </span>
+                    )}
 
                     {/* Geography / Ministry / State Chip */}
                     {isState ? (

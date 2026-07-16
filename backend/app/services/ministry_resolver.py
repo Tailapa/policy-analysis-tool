@@ -1,41 +1,63 @@
-import re
-
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from rapidfuzz import fuzz, process
 
-from app.core.db import COLLECTIONS
+from app.core.db import CATEGORY_TO_COLLECTION, COLLECTIONS, ENTITY_COLLECTIONS
+
+
+async def find_entity_by_id(db: AsyncIOMotorDatabase, oid: ObjectId) -> dict | None:
+    """Ministries/regulatory bodies/misc entities live in three separate
+    collections, but a policy_item's ministry_id/additional_ministry_ids
+    fields carry no collection hint — so resolving an id means checking each
+    collection in turn. Only 3 collections, so this is cheap."""
+    for collection_name in ENTITY_COLLECTIONS:
+        doc = await db[collection_name].find_one({"_id": oid})
+        if doc:
+            return doc
+    return None
+
+
+async def _all_entities(db: AsyncIOMotorDatabase, projection: dict | None = None) -> list[dict]:
+    docs: list[dict] = []
+    for collection_name in ENTITY_COLLECTIONS:
+        async for doc in db[collection_name].find({}, projection):
+            docs.append(doc)
+    return docs
 
 
 async def resolve_ministry(
     db: AsyncIOMotorDatabase, raw_name: str, threshold: int
 ) -> tuple[ObjectId, float]:
-    """Fuzzy-match raw_name against ministries.name. Above threshold -> link existing.
-    Below threshold -> auto-create a new ministries record (per backend-spec.md §5 step 3:
-    there's no review step left to catch an unlinked item, so it has to resolve one way
-    or another)."""
+    """Fuzzy-match raw_name against every ministry/regulatory body/misc
+    entity name, regardless of which of the 3 collections it lives in.
+    Above threshold -> link existing. Below threshold -> auto-create a new
+    record in the `ministries` collection (per backend-spec.md §5 step 3:
+    there's no review step left to catch an unlinked item, so it has to
+    resolve one way or another; a brand-new name defaults to the ministry
+    category, same as before the collection split)."""
 
-    collection = db[COLLECTIONS["ministries"]]
     name = raw_name.strip()
+    candidates = await _all_entities(db, {"name": 1})
 
-    exact = await collection.find_one({"name": {"$regex": f"^{re.escape(name)}$", "$options": "i"}})
-    if exact:
-        return exact["_id"], 100.0
+    for doc in candidates:
+        if doc["name"].strip().lower() == name.lower():
+            return doc["_id"], 100.0
 
-    existing_names = [doc["name"] async for doc in collection.find({}, {"name": 1})]
+    existing_names = [doc["name"] for doc in candidates]
     if existing_names:
         match = process.extractOne(name, existing_names, scorer=fuzz.WRatio)
         if match and match[1] >= threshold:
-            matched_doc = await collection.find_one({"name": match[0]})
+            matched_doc = next(doc for doc in candidates if doc["name"] == match[0])
             return matched_doc["_id"], float(match[1])
 
-    result = await collection.insert_one(
+    result = await db[COLLECTIONS["ministries"]].insert_one(
         {
             "name": name,
             "minister_name": None,
             "department": None,
             "seal_url": None,
             "icon": "Building2",
+            "category": "ministry",
         }
     )
     return result.inserted_id, 0.0
@@ -50,8 +72,9 @@ async def get_or_create_unmapped_ministry(db: AsyncIOMotorDatabase) -> ObjectId:
     at all and whose body text doesn't explicitly name a real ministry
     either (see find_ministry_mentioned_in_text) — grouped here rather than
     each spawning its own junk ministry record, with needs_ministry_review
-    set on the item so admins can find and fix it (ManageItems.tsx)."""
-    collection = db[COLLECTIONS["ministries"]]
+    set on the item so admins can find and fix it (ManageItems.tsx). Lives
+    in the misc_entities collection (category "misc")."""
+    collection = db[CATEGORY_TO_COLLECTION["misc"]]
     existing = await collection.find_one({"name": UNMAPPED_MINISTRY_NAME})
     if existing:
         return existing["_id"]
@@ -70,13 +93,13 @@ async def get_or_create_unmapped_ministry(db: AsyncIOMotorDatabase) -> ObjectId:
 
 async def find_ministry_mentioned_in_text(db: AsyncIOMotorDatabase, text: str) -> ObjectId | None:
     """Best-effort fallback for items with no '- Ministry X' title segment:
-    scans every existing ministry/regulatory body name for a mention inside
-    the item's own title+description, per the rule that an item should only
-    ever be auto-mapped to a ministry that's actually named in its own text
-    — never guessed from outside domain knowledge. Returns None (caller
-    flags for admin review) when nothing clears the threshold."""
-    collection = db[COLLECTIONS["ministries"]]
-    candidates = [doc async for doc in collection.find({}, {"name": 1}) if doc["name"] and doc["name"] != UNMAPPED_MINISTRY_NAME]
+    scans every existing ministry/regulatory body/misc entity name (across
+    all 3 collections) for a mention inside the item's own title+description,
+    per the rule that an item should only ever be auto-mapped to a ministry
+    that's actually named in its own text — never guessed from outside
+    domain knowledge. Returns None (caller flags for admin review) when
+    nothing clears the threshold."""
+    candidates = [doc for doc in await _all_entities(db, {"name": 1}) if doc["name"] and doc["name"] != UNMAPPED_MINISTRY_NAME]
     if not candidates:
         return None
 
@@ -103,12 +126,12 @@ async def find_additional_regulatory_body_links(
     notified by the Securities and Exchange Board of India (SEBI)...") so
     the item shows up under both its primary ministry and that regulatory
     body. Primary ministry resolution (resolve_ministry above) stays
-    untouched — this only ever adds regulatory_body-category links, never
-    reassigns the primary."""
-    collection = db[COLLECTIONS["ministries"]]
+    untouched — this only ever adds regulatory_body links, never reassigns
+    the primary."""
+    collection = db[CATEGORY_TO_COLLECTION["regulatory_body"]]
     bodies = [
         doc
-        async for doc in collection.find({"category": "regulatory_body"}, {"name": 1})
+        async for doc in collection.find({}, {"name": 1})
         if doc["_id"] != exclude_id
     ]
     if not bodies:

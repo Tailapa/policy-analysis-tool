@@ -1,21 +1,26 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.core.db import COLLECTIONS
+from app.core.db import COLLECTIONS, ENTITY_COLLECTIONS
 
 
 async def get_ministry_name_map(db: AsyncIOMotorDatabase) -> dict[str, str]:
-    cursor = db[COLLECTIONS["ministries"]].find({}, {"name": 1})
-    return {str(doc["_id"]): doc["name"] async for doc in cursor}
+    result: dict[str, str] = {}
+    for collection_name in ENTITY_COLLECTIONS:
+        async for doc in db[collection_name].find({}, {"name": 1}):
+            result[str(doc["_id"])] = doc["name"]
+    return result
 
 
 async def get_ministry_map(db: AsyncIOMotorDatabase) -> dict[str, dict]:
     """id -> {"name", "category"}, used to build ItemOut.linkedMinistries for
-    items linked to more than one ministry/regulatory body."""
-    cursor = db[COLLECTIONS["ministries"]].find({}, {"name": 1, "category": 1})
-    return {
-        str(doc["_id"]): {"name": doc["name"], "category": doc.get("category") or "ministry"}
-        async for doc in cursor
-    }
+    items linked to more than one ministry/regulatory body. Merges the 3
+    separate ministries/regulatory_bodies/misc_entities collections into one
+    lookup, same shape as before the collection split."""
+    result: dict[str, dict] = {}
+    for collection_name in ENTITY_COLLECTIONS:
+        async for doc in db[collection_name].find({}, {"name": 1, "category": 1}):
+            result[str(doc["_id"])] = {"name": doc["name"], "category": doc.get("category") or "ministry"}
+    return result
 
 
 async def get_item_counts_by_ministry(db: AsyncIOMotorDatabase) -> dict:

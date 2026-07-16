@@ -140,7 +140,7 @@ export default function Reports({ theme, issues }: ReportsProps) {
     <div className="space-y-6">
       {/* Header */}
       <div className={`p-8 rounded-[1.75rem] border shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all ${
-        isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
+        isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-[#caf0f8] border-[#ade8f4] shadow-cyan-900/10'
       }`}>
         <div>
           <h2 className={`text-2xl md:text-3xl font-extrabold font-display tracking-tight flex items-center gap-2 ${
@@ -149,7 +149,7 @@ export default function Reports({ theme, issues }: ReportsProps) {
             <FileText size={26} className="text-indigo-500" />
             <span>Reports</span>
           </h2>
-          <p className={`text-sm mt-1 ${isDark ? 'text-zinc-400' : 'text-zinc-600 font-medium'}`}>
+          <p className={`text-sm mt-1 ${isDark ? 'text-zinc-400' : 'text-slate-600 font-medium'}`}>
             Browse and download the original uploaded PDF for every published issue
           </p>
         </div>

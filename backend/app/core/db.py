@@ -43,10 +43,29 @@ COLLECTIONS = {
     "policy_items": "policy_items",
     "issues": "issues",
     "ministries": "ministries",
+    "regulatory_bodies": "regulatory_bodies",
+    "misc_entities": "misc_entities",
     "admin_users": "admin_users",
     "policy_evolution": "policy_evolution",
     "pillars": "pillars",
 }
+
+# Ministries/regulatory bodies/miscellaneous entities live in three separate
+# collections (rather than one collection with a category field) — kept in
+# sync with each other only by convention: every doc still carries its own
+# "category" field matching which collection it's in, so the rest of the
+# codebase doesn't need to change how it reads that field, but *which*
+# collection to query/insert/delete from is chosen via these maps.
+CATEGORY_TO_COLLECTION: dict[str, str] = {
+    "ministry": COLLECTIONS["ministries"],
+    "regulatory_body": COLLECTIONS["regulatory_bodies"],
+    "misc": COLLECTIONS["misc_entities"],
+}
+ENTITY_COLLECTIONS: list[str] = [
+    COLLECTIONS["ministries"],
+    COLLECTIONS["regulatory_bodies"],
+    COLLECTIONS["misc_entities"],
+]
 
 # The 6 themes the app has shipped with — used only as a one-time seed for a
 # brand-new/empty `pillars` collection so existing deployments keep working
@@ -76,7 +95,8 @@ async def ensure_indexes() -> None:
         name="items_text_search",
     )
 
-    await db[COLLECTIONS["ministries"]].create_index("name", unique=True)
+    for collection_name in ENTITY_COLLECTIONS:
+        await db[collection_name].create_index("name", unique=True)
     await db[COLLECTIONS["admin_users"]].create_index("email", unique=True)
     await db[COLLECTIONS["issues"]].create_index("published_at")
     await db[COLLECTIONS["pillars"]].create_index("name", unique=True)

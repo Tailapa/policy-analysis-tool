@@ -9,7 +9,7 @@ import ItemDetail from './components/ItemDetail';
 import Login from './components/Login';
 import Upload from './components/Upload';
 import { fetchIssues, fetchItemsForIssue, fetchAllItems, fetchMinistries, fetchPillars, fetchItem, getToken, clearToken } from './api';
-import { ALL_ISSUES_ID } from './constants';
+import { ALL_ISSUES_ID, getItemIssueLabel } from './constants';
 import { Sparkles, Calendar, Info, X } from 'lucide-react';
 
 export default function App() {
@@ -188,31 +188,6 @@ export default function App() {
         lineHeight: '1.6'
       }}
     >
-      {/* Aggregate "All Issues" view banner */}
-      {currentIssueId === ALL_ISSUES_ID && (
-        <div className={`px-6 py-2.5 text-xs font-bold flex items-center justify-between gap-4 border-b ${
-          isDark
-            ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
-            : 'bg-indigo-50 text-indigo-900 border-indigo-200'
-        }`}>
-          <div className="flex items-center gap-2">
-            <Info size={14} />
-            <span>AGGREGATE VIEW: Showing combined totals across all {issues.length} published issues.</span>
-          </div>
-          {latestIssueId && (
-            <button
-              onClick={() => setCurrentIssueId(latestIssueId)}
-              className={`flex items-center gap-1 font-semibold underline cursor-pointer transition-colors ${
-                isDark ? 'text-zinc-100 hover:text-indigo-400' : 'text-indigo-900 hover:text-indigo-800'
-              }`}
-            >
-              <span>Return to Current Issue</span>
-              <X size={14} className="inline" />
-            </button>
-          )}
-        </div>
-      )}
-
       {/* Historic issue read-only warning banner */}
       {currentIssueId && latestIssueId && currentIssueId !== latestIssueId && currentIssueId !== ALL_ISSUES_ID && (
         <div className={`px-6 py-2.5 text-xs font-bold flex items-center justify-between gap-4 border-b ${
@@ -275,7 +250,7 @@ export default function App() {
             onFilterMinistry={handleFilterMinistryFromDetail}
             onOpenItem={handleOpenItem}
             theme={theme}
-            issueLabel={activeIssueData?.label}
+            issueLabel={getItemIssueLabel(selectedItem.issueId, issues)}
             isAdmin={isAdmin}
           />
         ) : (

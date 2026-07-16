@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Ministry, MinistryCategory, Item, Pillar, Status, Impact, Issue } from '../types';
-import { ALL_ISSUES_ID, getDefaultPillarMeta } from '../constants';
+import { ALL_ISSUES_ID, getDefaultPillarMeta, getItemIssueLabel } from '../constants';
 import { downloadItemsReportPdf } from '../api';
 import Pagination from './Pagination';
 import TrackingPeriodFilter from './TrackingPeriodFilter';
@@ -287,7 +287,7 @@ export default function Ministries({
         // ================= DIRECTORY STATE =================
         <div className="space-y-6">
           <div className={`p-8 rounded-[1.75rem] border shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all ${
-            isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
+            isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-[#caf0f8] border-[#ade8f4] shadow-cyan-900/10'
           }`}>
             <div className="flex flex-col sm:flex-row sm:items-center gap-6 justify-between w-full md:w-auto">
               <div>
@@ -296,7 +296,7 @@ export default function Ministries({
                 }`}>
                   {title}
                 </h2>
-                <p className={`text-sm mt-1 ${isDark ? 'text-zinc-400' : 'text-zinc-600 font-medium'}`}>
+                <p className={`text-sm mt-1 ${isDark ? 'text-zinc-400' : 'text-slate-600 font-medium'}`}>
                   Explore tracked updates for <strong>{issueBadgeLabel}</strong>
                 </p>
               </div>
@@ -440,9 +440,12 @@ export default function Ministries({
         <div className="space-y-6">
           {/* Header Block with Back Button — the whole card is filled with
               the brand color to make it unmistakable which ministry/
-              regulatory body is currently selected (no border accents). */}
+              regulatory body is currently selected (no border accents).
+              Dark mode keeps the saturated navy-on-white-text treatment;
+              light mode uses the pale brand cyan with dark navy ink instead
+              of white text, since white-on-white-ish would have no contrast. */}
           <div className={`p-8 rounded-[1.75rem] shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${
-            isDark ? 'bg-[#0d3a58]' : 'bg-[#0077b6]'
+            isDark ? 'bg-[#0d3a58]' : 'bg-[#caf0f8] border border-[#ade8f4] shadow-cyan-900/10'
           }`}>
             <div className="flex items-start gap-4">
               <button
@@ -450,22 +453,30 @@ export default function Ministries({
                   setSelectedMinistry(undefined);
                   handleResetInnerFilters();
                 }}
-                className="w-10 h-10 rounded-full border border-white/25 bg-white/10 hover:bg-white/20 flex items-center justify-center cursor-pointer transition-colors shrink-0 mt-1 text-white"
+                className={`w-10 h-10 rounded-full border flex items-center justify-center cursor-pointer transition-colors shrink-0 mt-1 ${
+                  isDark
+                    ? 'border-white/25 bg-white/10 hover:bg-white/20 text-white'
+                    : 'border-[#023e8a]/20 bg-white/60 hover:bg-white text-[#023e8a]'
+                }`}
                 title="Back to Directory"
               >
                 <ArrowLeft size={18} />
               </button>
               <div className="flex items-start gap-3">
-                <div className="w-11 h-11 rounded-2xl border border-white/25 bg-white/10 flex items-center justify-center shrink-0 text-white">
+                <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${
+                  isDark ? 'border-white/25 bg-white/10 text-white' : 'border-[#023e8a]/20 bg-white/60 text-[#023e8a]'
+                }`}>
                   <ActiveIconComp size={20} />
                 </div>
                 <div>
-                  <h2 className="text-2xl md:text-3xl font-extrabold font-display tracking-tight text-white">
+                  <h2 className={`text-2xl md:text-3xl font-extrabold font-display tracking-tight ${
+                    isDark ? 'text-white' : 'text-[#023e8a]'
+                  }`}>
                     {selectedMinistry}
                   </h2>
                   {activeMinistryData?.minister && (
-                    <p className="text-sm mt-1 text-white/70">
-                      Minister in Charge: <span className="font-bold text-white">{activeMinistryData.minister}</span>
+                    <p className={`text-sm mt-1 ${isDark ? 'text-white/70' : 'text-slate-600'}`}>
+                      Minister in Charge: <span className={`font-bold ${isDark ? 'text-white' : 'text-[#023e8a]'}`}>{activeMinistryData.minister}</span>
                     </p>
                   )}
                 </div>
@@ -475,16 +486,18 @@ export default function Ministries({
             <TrackingPeriodFilter issues={issues} theme={theme} filter={trackingPeriod} />
 
             <div className="flex items-center gap-3 flex-wrap justify-end">
-              {downloadError && <span className="text-xs font-bold text-rose-200">{downloadError}</span>}
-              <span className="text-xs font-bold px-4 py-2 rounded-full border border-white/25 bg-white/10 text-white">
+              {downloadError && <span className={`text-xs font-bold ${isDark ? 'text-rose-200' : 'text-rose-600'}`}>{downloadError}</span>}
+              <span className={`text-xs font-bold px-4 py-2 rounded-full border ${
+                isDark ? 'border-white/25 bg-white/10 text-white' : 'border-[#023e8a]/20 bg-white/60 text-[#023e8a]'
+              }`}>
                 {scopedItems.length} active updates
               </span>
               <button
                 onClick={handleDownloadPdf}
                 disabled={downloading || scopedItems.length === 0}
                 title={scopedItems.length === 0 ? 'No items to export' : undefined}
-                className={`px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer bg-white hover:bg-zinc-100 ${
-                  isDark ? 'text-[#0d3a58]' : 'text-[#0077b6]'
+                className={`px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer ${
+                  isDark ? 'bg-white hover:bg-zinc-100 text-[#0d3a58]' : 'bg-[#023e8a] hover:bg-[#023e8a]/90 text-white'
                 } ${downloading || scopedItems.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
@@ -752,6 +765,14 @@ export default function Ministries({
                       }`}>
                         {item.date}
                       </span>
+                      {getItemIssueLabel(item.issueId, issues) && (
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                          isDark ? 'bg-sky-950/40 text-sky-300 border-sky-800/50' : 'bg-sky-50 text-sky-700 border-sky-200'
+                        }`}>
+                          <Calendar size={9} />
+                          <span>{getItemIssueLabel(item.issueId, issues)}</span>
+                        </span>
+                      )}
                       {isState ? (
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                           isDark 

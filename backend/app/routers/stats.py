@@ -12,6 +12,7 @@ from app.schemas.stats import (
     StatsSummary,
 )
 from app.services.lookups import get_latest_issue_id, get_pillar_names
+from app.services.ministry_resolver import find_entity_by_id
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
 
@@ -64,10 +65,9 @@ async def stats_ministries(issue_id: Optional[str] = None, db: AsyncIOMotorDatab
     ]
     rows = [row async for row in db[COLLECTIONS["policy_items"]].aggregate(pipeline)]
 
-    ministries_col = db[COLLECTIONS["ministries"]]
     result = []
     for row in rows:
-        ministry_doc = await ministries_col.find_one({"_id": row["_id"]})
+        ministry_doc = await find_entity_by_id(db, row["_id"]) if row["_id"] else None
         result.append(
             MinistryStat(
                 ministry_id=str(row["_id"]),

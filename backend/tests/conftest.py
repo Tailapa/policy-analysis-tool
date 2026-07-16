@@ -50,6 +50,8 @@ async def test_db():
     client = AsyncMongoMockClient()
     db = client["governance_watch_test"]
     await db["ministries"].create_index("name", unique=True)
+    await db["regulatory_bodies"].create_index("name", unique=True)
+    await db["misc_entities"].create_index("name", unique=True)
     await db["admin_users"].create_index("email", unique=True)
     await db["pillars"].create_index("name", unique=True)
     now = datetime.now(timezone.utc)
