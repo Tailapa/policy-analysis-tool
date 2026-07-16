@@ -42,7 +42,7 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, onOpenItem,
     }`}>
       {/* Navy Hero Band */}
       <div className={`p-8 border-b flex flex-col md:flex-row justify-between items-start md:items-center gap-6 transition-all ${
-        isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-[#185FA5] border-zinc-200 text-white'
+        isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-[#0077b6] border-zinc-200 text-white'
       }`}>
         <div>
           <span className={`text-xs font-bold tracking-widest block mb-1 ${
@@ -105,7 +105,7 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, onOpenItem,
 
         {/* Description as Lead Paragraph */}
         <p className={`text-sm md:text-base leading-relaxed mb-8 border-l-4 pl-4 font-medium ${
-          isDark ? 'text-zinc-400 border-indigo-500' : 'text-zinc-600 border-[#185FA5]'
+          isDark ? 'text-zinc-400 border-indigo-500' : 'text-zinc-600 border-[#0077b6]'
         }`}>
           {item.description}
         </p>
@@ -140,8 +140,8 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, onOpenItem,
                         onClick={() => onFilterMinistry?.(m.name)}
                         className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold shadow-sm cursor-pointer transition-colors ${
                           isDark
-                            ? 'bg-indigo-950/40 border-indigo-850/50 text-indigo-300 hover:bg-zinc-800'
-                            : 'bg-indigo-50 border-indigo-150 text-indigo-800 hover:bg-zinc-100'
+                            ? 'bg-indigo-950/40 border-indigo-800/50 text-indigo-300 hover:bg-zinc-800'
+                            : 'bg-indigo-50 border-indigo-200 text-indigo-800 hover:bg-zinc-100'
                         }`}
                       >
                         <Building2 size={13} className="text-indigo-500" />
@@ -156,8 +156,8 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, onOpenItem,
                       onClick={() => onFilterMinistry?.(item.ministry)}
                       className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold shadow-sm cursor-pointer transition-colors ${
                         isDark
-                          ? 'bg-indigo-950/40 border-indigo-850/50 text-indigo-300 hover:bg-zinc-800'
-                          : 'bg-indigo-50 border-indigo-150 text-indigo-800 hover:bg-zinc-100'
+                          ? 'bg-indigo-950/40 border-indigo-800/50 text-indigo-300 hover:bg-zinc-800'
+                          : 'bg-indigo-50 border-indigo-200 text-indigo-800 hover:bg-zinc-100'
                       }`}
                     >
                       <Building2 size={13} className="text-indigo-500" />

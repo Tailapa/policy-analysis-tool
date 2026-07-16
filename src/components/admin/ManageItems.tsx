@@ -6,15 +6,21 @@ import { Trash2, Loader2, FileText, AlertTriangle, Link2, Check, X } from 'lucid
 interface ManageItemsProps {
   isDark: boolean;
   onItemsChanged: () => void;
+  /** When set, only items with at least one linked ministry/regulatory
+   * body of this category are shown — powers the "Manage Misc Items" tab,
+   * scoped to Union Cabinet / PM's Office / NITI Aayog / flagged-unmapped
+   * items, without duplicating this whole component. */
+  scopeCategory?: MinistryCategory;
 }
 
-export default function ManageItems({ isDark, onItemsChanged }: ManageItemsProps) {
+export default function ManageItems({ isDark, onItemsChanged, scopeCategory }: ManageItemsProps) {
   const [items, setItems] = useState<Item[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [flaggedOnly, setFlaggedOnly] = useState(false);
 
   const [ministries, setMinistries] = useState<Ministry[] | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -104,11 +110,20 @@ export default function ManageItems({ isDark, onItemsChanged }: ManageItemsProps
     }
   };
 
-  const filteredItems = items.filter((it) =>
-    !searchQuery.trim() ||
-    it.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    it.ministry.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const scopedItems = scopeCategory
+    ? items.filter((it) => it.linkedMinistries.some((m) => m.category === scopeCategory))
+    : items;
+
+  const flaggedCount = scopedItems.filter((it) => it.needsMinistryReview).length;
+
+  const filteredItems = scopedItems
+    .filter((it) =>
+      (!searchQuery.trim() ||
+        it.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        it.ministry.toLowerCase().includes(searchQuery.toLowerCase())) &&
+      (!flaggedOnly || it.needsMinistryReview)
+    )
+    .sort((a, b) => Number(b.needsMinistryReview) - Number(a.needsMinistryReview));
 
   const renderMinistryGroup = (label: string, category: MinistryCategory) => {
     const group = (ministries || []).filter((m) => (m.category || 'ministry') === category);
@@ -156,9 +171,28 @@ export default function ManageItems({ isDark, onItemsChanged }: ManageItemsProps
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <h3 className={`text-sm font-bold ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>
-          {items.length} tracked items
-        </h3>
+        <div className="flex items-center gap-2 flex-wrap">
+          <h3 className={`text-sm font-bold ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>
+            {scopedItems.length} tracked items
+          </h3>
+          {flaggedCount > 0 && (
+            <button
+              onClick={() => setFlaggedOnly((prev) => !prev)}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold cursor-pointer transition-colors border ${
+                flaggedOnly
+                  ? 'bg-amber-500 border-amber-500 text-white'
+                  : isDark
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20'
+                    : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
+              }`}
+              title="Items with no ministry explicitly named in their own text — needs a human to map them"
+            >
+              <AlertTriangle size={11} />
+              {flaggedCount} need{flaggedCount === 1 ? 's' : ''} ministry review
+              {flaggedOnly && <X size={11} />}
+            </button>
+          )}
+        </div>
         <input
           type="text"
           value={searchQuery}
@@ -192,11 +226,24 @@ export default function ManageItems({ isDark, onItemsChanged }: ManageItemsProps
           {filteredItems.map((item) => (
             <div
               key={item.id}
-              className={`rounded-xl border ${isDark ? 'bg-zinc-950/40 border-zinc-800' : 'bg-zinc-50 border-zinc-200'}`}
+              className={`rounded-xl border ${
+                item.needsMinistryReview
+                  ? isDark ? 'bg-amber-500/5 border-amber-500/30' : 'bg-amber-50/60 border-amber-200'
+                  : isDark ? 'bg-zinc-950/40 border-zinc-800' : 'bg-zinc-50 border-zinc-200'
+              }`}
             >
               <div className="flex items-center justify-between gap-4 px-4 py-3">
                 <div className="min-w-0">
-                  <p className={`text-xs font-bold truncate ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>{item.title}</p>
+                  <div className="flex items-center gap-2">
+                    {item.needsMinistryReview && (
+                      <span className={`shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide ${
+                        isDark ? 'bg-amber-500/15 text-amber-400' : 'bg-amber-100 text-amber-700'
+                      }`}>
+                        <AlertTriangle size={9} /> Needs review
+                      </span>
+                    )}
+                    <p className={`text-xs font-bold truncate ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>{item.title}</p>
+                  </div>
                   <p className="text-[10px] text-zinc-500 font-semibold mt-0.5 truncate">
                     {item.linkedMinistries.map((m) => m.name).join(' + ') || item.ministry} &bull; {item.theme} &bull; {item.date}
                   </p>

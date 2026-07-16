@@ -10,7 +10,12 @@ from app.services.draft_detection import detect_draft_from_text
 from app.services.financial_extractor import extract_financial_outlay
 from app.services.geo_tagger import tag_geography
 from app.services.issue_meta import IssueMetaError, extract_issue_meta
-from app.services.ministry_resolver import find_additional_regulatory_body_links, resolve_ministry
+from app.services.ministry_resolver import (
+    find_additional_regulatory_body_links,
+    find_ministry_mentioned_in_text,
+    get_or_create_unmapped_ministry,
+    resolve_ministry,
+)
 from app.services.report_chunker import ChunkingError, chunk_report
 from app.services.source_link_matcher import match_source_links
 
@@ -93,7 +98,22 @@ async def ingest_report(
     item_docs: list[dict] = []
     link_ptr = 0
     for parsed in parsed_items:
-        ministry_id, match_score = await resolve_ministry(db, parsed.ministry_raw, ministry_match_threshold)
+        needs_ministry_review = False
+        if parsed.ministry_raw.strip():
+            ministry_id, match_score = await resolve_ministry(db, parsed.ministry_raw, ministry_match_threshold)
+        else:
+            # The title had no "- Ministry X" segment at all (e.g. no anchor
+            # line to split on). Only auto-map to a ministry that's actually
+            # named somewhere in the item's own text — never guess from
+            # outside knowledge — otherwise flag it for admin review rather
+            # than spawning a junk ministry record (see ministry_resolver.py).
+            mentioned_id = await find_ministry_mentioned_in_text(db, f"{parsed.title} {parsed.description}")
+            if mentioned_id is not None:
+                ministry_id, match_score = mentioned_id, 100.0
+            else:
+                ministry_id = await get_or_create_unmapped_ministry(db)
+                match_score = 0.0
+                needs_ministry_review = True
         scope, states, geo_terms = tag_geography(f"{parsed.title} {parsed.description}")
         if parsed.source_label is None:
             sources: list[dict] = []
@@ -114,6 +134,7 @@ async def ingest_report(
             "impact_level": parsed.impact_level,
             "ministry_id": ministry_id,
             "additional_ministry_ids": additional_ministry_ids,
+            "needs_ministry_review": needs_ministry_review,
             "sources": sources,
             "geography": {"scope": scope, "states": states},
             "tags": [],

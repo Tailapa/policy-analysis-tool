@@ -88,6 +88,7 @@ class PolicyItem(BaseModel):
     impact_level: Optional[ImpactLevel] = None
     ministry_id: str
     additional_ministry_ids: list[str] = Field(default_factory=list)
+    needs_ministry_review: bool = False
     sources: list[SourceModel] = Field(default_factory=list)
     geography: GeographyModel
     tags: list[str] = Field(default_factory=list)

@@ -1,10 +1,28 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
+/* Client brand palette below overrides Tailwind's default indigo scale so
+   every existing bg-indigo-*, text-indigo-*, border-indigo-*, ring-indigo-*
+   usage across the app (buttons, active states, focus rings, badges) picks
+   up the brand color automatically, in both light and dark mode. Shades
+   50/100/300/500/600/800/900 are the client colors as given; 200/400/950
+   are interpolated to keep the ramp smooth. */
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Outfit", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-indigo-50: #caf0f8;
+  --color-indigo-100: #ade8f4;
+  --color-indigo-200: #7bd9ec;
+  --color-indigo-300: #48cae4;
+  --color-indigo-400: #24acd3;
+  --color-indigo-500: #008dc2;
+  --color-indigo-600: #0077b6;
+  --color-indigo-700: #1c6984;
+  --color-indigo-800: #023e8a;
+  --color-indigo-900: #0d3a58;
+  --color-indigo-950: #09293e;
 }
 
 body {

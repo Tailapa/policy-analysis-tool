@@ -49,6 +49,7 @@ class ItemOut(BaseModel):
     isDraft: bool = False
     draftVerification: Optional[DraftVerificationOut] = None
     financialOutlay: Optional[str] = None
+    needsMinistryReview: bool = False
 
 
 class PaginatedItems(BaseModel):
@@ -111,4 +112,5 @@ def serialize_item(doc: dict, ministry_map: dict[str, dict]) -> ItemOut:
         isDraft=doc.get("is_draft", False),
         draftVerification=draft_verification,
         financialOutlay=doc.get("financial_outlay"),
+        needsMinistryReview=doc.get("needs_ministry_review", False),
     )

@@ -10,3 +10,4 @@ coverage/
 knowledge/
 .dockerignore
 .claude/
+.firebase/

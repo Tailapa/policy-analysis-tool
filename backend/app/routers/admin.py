@@ -112,7 +112,7 @@ async def update_item_ministries(
 
     result = await db[COLLECTIONS["policy_items"]].update_one(
         {"_id": oid},
-        {"$set": {"ministry_id": primary_oid, "additional_ministry_ids": additional_oids}},
+        {"$set": {"ministry_id": primary_oid, "additional_ministry_ids": additional_oids, "needs_ministry_review": False}},
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Item not found")

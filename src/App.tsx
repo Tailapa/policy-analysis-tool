@@ -203,7 +203,7 @@ export default function App() {
             <button
               onClick={() => setCurrentIssueId(latestIssueId)}
               className={`flex items-center gap-1 font-semibold underline cursor-pointer transition-colors ${
-                isDark ? 'text-zinc-100 hover:text-indigo-400' : 'text-indigo-900 hover:text-indigo-750'
+                isDark ? 'text-zinc-100 hover:text-indigo-400' : 'text-indigo-900 hover:text-indigo-800'
               }`}
             >
               <span>Return to Current Issue</span>
@@ -317,6 +317,24 @@ export default function App() {
               <Ministries
                 category="regulatory_body"
                 title="Regulatory Bodies Directory"
+                onSelectItem={handleSelectItem}
+                selectedMinistry={selectedMinistry}
+                setSelectedMinistry={setSelectedMinistry}
+                theme={theme}
+                items={items}
+                allItems={allItems}
+                currentIssueId={currentIssueId}
+                setCurrentIssueId={setCurrentIssueId}
+                issues={issues}
+                ministries={ministries}
+                pillars={pillars}
+              />
+            )}
+
+            {activeTab === 'Miscellaneous' && (
+              <Ministries
+                category="misc"
+                title="Miscellaneous Directory"
                 onSelectItem={handleSelectItem}
                 selectedMinistry={selectedMinistry}
                 setSelectedMinistry={setSelectedMinistry}

@@ -2,7 +2,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
-MinistryCategory = Literal["ministry", "regulatory_body"]
+MinistryCategory = Literal["ministry", "regulatory_body", "misc"]
 
 
 class Ministry(BaseModel):

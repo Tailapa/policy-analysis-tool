@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Ministry, MinistryCategory } from '../../types';
 import { adminListMinistries, createMinistry, updateMinistry, deleteMinistry } from '../../api';
-import { Trash2, Loader2, Building2, AlertTriangle, Plus, ArrowLeftRight } from 'lucide-react';
+import { Trash2, Loader2, Building2, AlertTriangle, Plus } from 'lucide-react';
 
 interface ManageMinistriesProps {
   isDark: boolean;
@@ -32,10 +32,10 @@ export default function ManageMinistries({ isDark, onMinistriesChanged }: Manage
     load();
   }, []);
 
-  const handleToggleCategory = async (ministry: Ministry) => {
+  const handleCategoryChange = async (ministry: Ministry, nextCategory: MinistryCategory) => {
+    if (nextCategory === (ministry.category || 'ministry')) return;
     setBusyId(ministry.id);
     setError(null);
-    const nextCategory: MinistryCategory = ministry.category === 'ministry' ? 'regulatory_body' : 'ministry';
     try {
       const updated = await updateMinistry(ministry.id, { category: nextCategory });
       setMinistries((prev) => prev.map((m) => (m.id === ministry.id ? updated : m)));
@@ -114,16 +114,20 @@ export default function ManageMinistries({ isDark, onMinistriesChanged }: Manage
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => handleToggleCategory(ministry)}
+                  <select
+                    value={ministry.category || 'ministry'}
+                    onChange={(e) => handleCategoryChange(ministry, e.target.value as MinistryCategory)}
                     disabled={busyId === ministry.id}
-                    title={`Move to ${category === 'ministry' ? 'Regulatory Bodies' : 'Ministries'}`}
-                    className={`p-2 rounded-full cursor-pointer transition-colors ${
-                      isDark ? 'text-zinc-400 hover:text-indigo-400 hover:bg-indigo-500/10' : 'text-zinc-500 hover:text-indigo-600 hover:bg-indigo-50'
+                    title="Recategorize"
+                    className={`px-2 py-1.5 rounded-lg border text-[10px] font-bold cursor-pointer focus:outline-none ${
+                      isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-300' : 'bg-white border-zinc-200 text-zinc-700'
                     }`}
                   >
-                    {busyId === ministry.id ? <Loader2 size={14} className="animate-spin" /> : <ArrowLeftRight size={14} />}
-                  </button>
+                    <option value="ministry">Ministry</option>
+                    <option value="regulatory_body">Regulatory Body</option>
+                    <option value="misc">Miscellaneous</option>
+                  </select>
+                  {busyId === ministry.id && <Loader2 size={13} className="animate-spin text-zinc-400" />}
 
                   {confirmingId === ministry.id ? (
                     <div className="flex items-center gap-2">
@@ -213,6 +217,7 @@ export default function ManageMinistries({ isDark, onMinistriesChanged }: Manage
           >
             <option value="ministry">Ministry</option>
             <option value="regulatory_body">Regulatory Body</option>
+            <option value="misc">Miscellaneous</option>
           </select>
         </div>
         <button
@@ -233,6 +238,7 @@ export default function ManageMinistries({ isDark, onMinistriesChanged }: Manage
         <div className="space-y-6">
           {renderGroup('Ministries', 'ministry')}
           {renderGroup('Regulatory Bodies', 'regulatory_body')}
+          {renderGroup('Miscellaneous', 'misc')}
         </div>
       )}
     </div>

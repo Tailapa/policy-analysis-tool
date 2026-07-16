@@ -16,7 +16,8 @@ import {
   Trash2,
   Loader2,
   ListChecks,
-  Tag
+  Tag,
+  Layers
 } from 'lucide-react';
 import { INDIA_STATE_PATHS } from './IndiaMapPaths';
 import ManageItems from './admin/ManageItems';
@@ -33,7 +34,7 @@ interface UploadProps {
   onPillarsChanged: () => void;
 }
 
-type AdminTab = 'upload' | 'items' | 'ministries' | 'themes';
+type AdminTab = 'upload' | 'items' | 'misc-items' | 'ministries' | 'themes';
 
 export default function Upload({
   onUploadSuccess,
@@ -312,7 +313,7 @@ export default function Upload({
             </button>
             <button
               onClick={onBackToDashboard}
-              className="w-full sm:w-auto px-6 py-2.5 bg-indigo-600 hover:bg-indigo-550 text-white rounded-full text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="w-full sm:w-auto px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               Return to Dashboard
             </button>
@@ -384,7 +385,7 @@ export default function Upload({
             </button>
             <button
               onClick={onBackToDashboard}
-              className="w-full sm:w-auto px-6 py-2.5 bg-indigo-600 hover:bg-indigo-550 text-white rounded-full text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="w-full sm:w-auto px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               Return to Dashboard
             </button>
@@ -397,6 +398,7 @@ export default function Upload({
   const adminTabs: { id: AdminTab; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
     { id: 'upload', label: 'Upload New', icon: UploadIcon },
     { id: 'items', label: 'Manage Items', icon: ListChecks },
+    { id: 'misc-items', label: 'Manage Misc Items', icon: Layers },
     { id: 'ministries', label: 'Manage Ministries', icon: Building2 },
     { id: 'themes', label: 'Manage Themes', icon: Tag },
   ];
@@ -451,6 +453,10 @@ export default function Upload({
 
       {activeAdminTab === 'items' && (
         <ManageItems isDark={isDark} onItemsChanged={onMinistriesChanged} />
+      )}
+
+      {activeAdminTab === 'misc-items' && (
+        <ManageItems isDark={isDark} onItemsChanged={onMinistriesChanged} scopeCategory="misc" />
       )}
 
       {activeAdminTab === 'ministries' && (

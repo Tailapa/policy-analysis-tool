@@ -52,7 +52,8 @@ import {
   Calendar,
   Download,
   Loader2,
-  Check
+  Check,
+  AlertTriangle
 } from 'lucide-react';
 
 interface MinistriesProps {
@@ -131,10 +132,10 @@ export default function Ministries({
   // static colors for the original 6 themes; admin-created themes fall back
   // to defaultPillarMeta via `pillarMeta[x] ?? defaultPillarMeta`.
   const pillarMeta: Record<string, { color: string; text: string; bg: string }> = {
-    'Economic Growth': { 
-      color: isDark ? '#6366F1' : '#185FA5', 
-      text: isDark ? '#C7D2FE' : '#0C447C', 
-      bg: isDark ? '#1E1B4B' : '#E6F1FB' 
+    'Economic Growth': {
+      color: isDark ? '#008dc2' : '#0077b6',
+      text: isDark ? '#7bd9ec' : '#023e8a',
+      bg: isDark ? '#09293e' : '#caf0f8'
     },
     'Infrastructure': { 
       color: isDark ? '#10B981' : '#1D9E75', 
@@ -168,7 +169,7 @@ export default function Ministries({
     Building2, Coins, Briefcase, Shield, Train, Cpu, Flame, Lock, Compass, Home, Globe,
     HeartPulse, Zap, Sprout, Plane, Anchor, Milestone, Leaf, GraduationCap,
     Factory, Mountain, Radio, Users, Landmark, Palette, Fish, Droplet, Scale,
-    Hammer, Pickaxe, UserCog, Scissors, Baby, Trophy, Rocket, Atom
+    Hammer, Pickaxe, UserCog, Scissors, Baby, Trophy, Rocket, Atom, AlertTriangle
   };
 
   // 1. Filtered list of ministries for directory page, scoped to this tab's
@@ -202,9 +203,9 @@ export default function Ministries({
     setDirectoryPage(1);
   }, [searchQuery, category, activeItems]);
 
-  // Pagination only applies to Regulatory Bodies — the Ministries tab always
-  // shows its full list on a single page.
-  const isPaginated = category === 'regulatory_body';
+  // Pagination applies to Regulatory Bodies and Miscellaneous — the
+  // Ministries tab always shows its full list on a single page.
+  const isPaginated = category === 'regulatory_body' || category === 'misc';
   const directoryTotalPages = isPaginated
     ? Math.max(1, Math.ceil(filteredMinistries.length / DIRECTORY_PAGE_SIZE))
     : 1;
@@ -252,6 +253,8 @@ export default function Ministries({
   const activeMinistryData = useMemo(() => {
     return ministries.find(m => m.name === selectedMinistry);
   }, [selectedMinistry, ministries]);
+
+  const ActiveIconComp = iconMap[activeMinistryData?.icon || ''] || (category === 'regulatory_body' ? Landmark : Building2);
 
   const handleDownloadPdf = async () => {
     if (!selectedMinistry || scopedItems.length === 0) return;
@@ -435,9 +438,11 @@ export default function Ministries({
       ) : (
         // ================= DETAIL STATE (DRILLDOWN) =================
         <div className="space-y-6">
-          {/* Header Block with Back Button */}
-          <div className={`p-8 rounded-[1.75rem] border shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${
-            isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
+          {/* Header Block with Back Button — the whole card is filled with
+              the brand color to make it unmistakable which ministry/
+              regulatory body is currently selected (no border accents). */}
+          <div className={`p-8 rounded-[1.75rem] shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${
+            isDark ? 'bg-[#0d3a58]' : 'bg-[#0077b6]'
           }`}>
             <div className="flex items-start gap-4">
               <button
@@ -445,51 +450,42 @@ export default function Ministries({
                   setSelectedMinistry(undefined);
                   handleResetInnerFilters();
                 }}
-                className={`w-10 h-10 rounded-full border flex items-center justify-center cursor-pointer transition-colors shrink-0 mt-1 ${
-                  isDark 
-                    ? 'border-zinc-700 hover:bg-zinc-800 text-zinc-300' 
-                    : 'border-zinc-200 hover:bg-zinc-100 text-zinc-700 shadow-sm'
-                }`}
+                className="w-10 h-10 rounded-full border border-white/25 bg-white/10 hover:bg-white/20 flex items-center justify-center cursor-pointer transition-colors shrink-0 mt-1 text-white"
                 title="Back to Directory"
               >
                 <ArrowLeft size={18} />
               </button>
-              <div>
-                <h2 className={`text-2xl md:text-3xl font-extrabold font-display tracking-tight ${
-                  isDark ? 'text-zinc-100' : 'text-zinc-900'
-                }`}>
-                  {selectedMinistry}
-                </h2>
-                {activeMinistryData?.minister && (
-                  <p className={`text-sm mt-1 ${isDark ? 'text-zinc-400' : 'text-zinc-600 font-medium'}`}>
-                    Minister in Charge: <span className={`font-bold ${isDark ? 'text-zinc-200' : 'text-zinc-900'}`}>{activeMinistryData.minister}</span>
-                  </p>
-                )}
+              <div className="flex items-start gap-3">
+                <div className="w-11 h-11 rounded-2xl border border-white/25 bg-white/10 flex items-center justify-center shrink-0 text-white">
+                  <ActiveIconComp size={20} />
+                </div>
+                <div>
+                  <h2 className="text-2xl md:text-3xl font-extrabold font-display tracking-tight text-white">
+                    {selectedMinistry}
+                  </h2>
+                  {activeMinistryData?.minister && (
+                    <p className="text-sm mt-1 text-white/70">
+                      Minister in Charge: <span className="font-bold text-white">{activeMinistryData.minister}</span>
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
             <TrackingPeriodFilter issues={issues} theme={theme} filter={trackingPeriod} />
 
             <div className="flex items-center gap-3 flex-wrap justify-end">
-              {downloadError && <span className="text-xs font-bold text-rose-500">{downloadError}</span>}
-              <span className={`text-xs font-bold px-4 py-2 rounded-full border ${
-                isDark
-                  ? 'text-indigo-300 bg-indigo-950/40 border-indigo-900/40'
-                  : 'text-indigo-800 bg-indigo-50 border-indigo-200 shadow-sm'
-              }`}>
+              {downloadError && <span className="text-xs font-bold text-rose-200">{downloadError}</span>}
+              <span className="text-xs font-bold px-4 py-2 rounded-full border border-white/25 bg-white/10 text-white">
                 {scopedItems.length} active updates
               </span>
               <button
                 onClick={handleDownloadPdf}
                 disabled={downloading || scopedItems.length === 0}
                 title={scopedItems.length === 0 ? 'No items to export' : undefined}
-                className={`px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 border shadow-sm transition-all cursor-pointer ${
-                  downloading || scopedItems.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
-                } ${
-                  isDark
-                    ? 'bg-zinc-800 border-zinc-700 text-zinc-200 hover:bg-zinc-700'
-                    : 'bg-white border-zinc-200 text-zinc-800 hover:bg-zinc-50'
-                }`}
+                className={`px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer bg-white hover:bg-zinc-100 ${
+                  isDark ? 'text-[#0d3a58]' : 'text-[#0077b6]'
+                } ${downloading || scopedItems.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
                 <span>Download PDF</span>

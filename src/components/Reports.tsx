@@ -385,8 +385,8 @@ export default function Reports({ theme, issues }: ReportsProps) {
           <div className={`rounded-[1.75rem] border shadow-xl transition-all ${
             isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
           }`}>
-            {/* Header row */}
-            <div className={`grid grid-cols-[1fr_140px_130px_150px] gap-4 px-7 py-4 rounded-t-[1.75rem] border-b text-[10px] font-extrabold uppercase tracking-wider ${
+            {/* Header row — desktop table only; mobile uses stacked cards below */}
+            <div className={`hidden md:grid grid-cols-[1fr_140px_130px_150px] gap-4 px-7 py-4 rounded-t-[1.75rem] border-b text-[10px] font-extrabold uppercase tracking-wider ${
               isDark ? 'bg-zinc-950/60 text-zinc-500 border-zinc-800' : 'bg-zinc-50 text-zinc-500 border-zinc-200'
             }`}>
               <span>Issue</span>
@@ -402,8 +402,9 @@ export default function Reports({ theme, issues }: ReportsProps) {
                 onMouseEnter={() => setHoveredIssueId(issue.id)}
                 onMouseLeave={() => setHoveredIssueId(null)}
               >
+                {/* Desktop table row */}
                 <div
-                  className={`grid grid-cols-[1fr_140px_130px_150px] gap-4 px-7 py-4 items-center transition-colors ${
+                  className={`hidden md:grid grid-cols-[1fr_140px_130px_150px] gap-4 px-7 py-4 items-center transition-colors ${
                     idx !== paginatedIssues.length - 1 ? `border-b ${isDark ? 'border-zinc-800/70' : 'border-zinc-100'}` : ''
                   } ${isDark ? 'hover:bg-zinc-800/40' : 'hover:bg-zinc-50'}`}
                 >
@@ -431,6 +432,44 @@ export default function Reports({ theme, issues }: ReportsProps) {
                       <span>{issue.hasPdf ? 'Download' : 'Unavailable'}</span>
                     </button>
                   </div>
+                </div>
+
+                {/* Mobile stacked card */}
+                <div
+                  className={`md:hidden flex flex-col gap-3 px-5 py-4 ${
+                    idx !== paginatedIssues.length - 1 ? `border-b ${isDark ? 'border-zinc-800/70' : 'border-zinc-100'}` : ''
+                  }`}
+                >
+                  <span className={`text-sm font-bold ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>
+                    {issue.label}
+                  </span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                      isDark ? 'bg-zinc-800 text-zinc-300 border-zinc-700' : 'bg-zinc-100 text-zinc-600 border-zinc-200'
+                    }`}>
+                      {issue.dateRange}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                      isDark ? 'bg-zinc-800 text-zinc-300 border-zinc-700' : 'bg-zinc-100 text-zinc-600 border-zinc-200'
+                    }`}>
+                      {issue.itemsCount} items
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleDownloadOne(issue.id)}
+                    disabled={!issue.hasPdf || downloadingId === issue.id}
+                    title={!issue.hasPdf ? 'Original PDF not available for this issue' : undefined}
+                    className={`w-full px-3.5 py-2 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                      !issue.hasPdf
+                        ? 'opacity-40 cursor-not-allowed border-zinc-300 text-zinc-400'
+                        : isDark
+                          ? 'bg-zinc-800 border-zinc-700 text-zinc-200 hover:bg-zinc-700'
+                          : 'bg-zinc-50 border-zinc-200 text-zinc-800 hover:bg-zinc-100 shadow-sm'
+                    }`}
+                  >
+                    {downloadingId === issue.id ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                    <span>{issue.hasPdf ? 'Download' : 'Unavailable'}</span>
+                  </button>
                 </div>
 
                 {/* Floating hover preview card */}

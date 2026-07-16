@@ -26,11 +26,12 @@ export default function Masthead({
   onLoginClick,
   onLogout,
 }: MastheadProps) {
-  const tabs: ActiveTab[] = ['Overview', 'Ministries', 'RegulatoryBodies', 'Drafts', 'Reports'];
+  const tabs: ActiveTab[] = ['Overview', 'Ministries', 'RegulatoryBodies', 'Miscellaneous', 'Drafts', 'Reports'];
   const TAB_LABELS: Record<ActiveTab, string> = {
     Overview: 'Overview',
     Ministries: 'Ministries',
     RegulatoryBodies: 'Regulatory Bodies',
+    Miscellaneous: 'Miscellaneous',
     Drafts: 'Drafts',
     Reports: 'Reports',
     Login: 'Login',
@@ -62,9 +63,11 @@ export default function Masthead({
         </div>
       </div>
 
-      <div className="flex items-center gap-4 self-end md:self-auto flex-wrap sm:flex-nowrap">
-        {/* Navigation Tabs as Pills */}
-        <nav className={`flex gap-1.5 p-1 rounded-full shadow-inner border transition-all ${
+      <div className="flex items-center gap-4 self-end md:self-auto flex-wrap sm:flex-nowrap w-full sm:w-auto">
+        {/* Navigation Tabs as Pills — horizontally scrollable on narrow
+            screens (5 tabs incl. "Regulatory Bodies" don't fit a phone
+            width) instead of overflowing the page or wrapping mid-pill. */}
+        <nav className={`flex gap-1.5 p-1 rounded-full shadow-inner border transition-all overflow-x-auto max-w-full ${
           isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
         }`}>
           {tabs.map((tab) => {
@@ -73,11 +76,11 @@ export default function Masthead({
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                   isActive
                     ? isDark
-                      ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/50'
-                      : 'bg-white text-zinc-900 shadow-sm border border-zinc-200'
+                      ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/30'
+                      : 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25'
                     : isDark
                       ? 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30'
                       : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/50'

@@ -11,7 +11,7 @@ export interface Source {
   url: string;
 }
 
-export type MinistryCategory = 'ministry' | 'regulatory_body';
+export type MinistryCategory = 'ministry' | 'regulatory_body' | 'misc';
 
 export interface MinistryRef {
   id: string;
@@ -45,6 +45,7 @@ export interface Item {
   isDraft: boolean;
   draftVerification: DraftVerification | null;
   financialOutlay: string | null;
+  needsMinistryReview: boolean;
 }
 
 export interface Ministry {
@@ -58,7 +59,7 @@ export interface Ministry {
 
 export type TextSize = 'sm' | 'md' | 'lg';
 
-export type ActiveTab = 'Overview' | 'Ministries' | 'RegulatoryBodies' | 'Drafts' | 'Reports' | 'Login' | 'Upload';
+export type ActiveTab = 'Overview' | 'Ministries' | 'RegulatoryBodies' | 'Miscellaneous' | 'Drafts' | 'Reports' | 'Login' | 'Upload';
 
 export interface PillarStat {
   pillar: string;

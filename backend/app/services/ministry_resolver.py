@@ -41,6 +41,56 @@ async def resolve_ministry(
     return result.inserted_id, 0.0
 
 
+UNMAPPED_MINISTRY_NAME = "Unmapped — Needs Review"
+MINISTRY_MENTION_THRESHOLD = 90
+
+
+async def get_or_create_unmapped_ministry(db: AsyncIOMotorDatabase) -> ObjectId:
+    """Destination for items whose title carries no '- Ministry X' segment
+    at all and whose body text doesn't explicitly name a real ministry
+    either (see find_ministry_mentioned_in_text) — grouped here rather than
+    each spawning its own junk ministry record, with needs_ministry_review
+    set on the item so admins can find and fix it (ManageItems.tsx)."""
+    collection = db[COLLECTIONS["ministries"]]
+    existing = await collection.find_one({"name": UNMAPPED_MINISTRY_NAME})
+    if existing:
+        return existing["_id"]
+    result = await collection.insert_one(
+        {
+            "name": UNMAPPED_MINISTRY_NAME,
+            "minister_name": None,
+            "department": None,
+            "seal_url": None,
+            "icon": "AlertTriangle",
+            "category": "misc",
+        }
+    )
+    return result.inserted_id
+
+
+async def find_ministry_mentioned_in_text(db: AsyncIOMotorDatabase, text: str) -> ObjectId | None:
+    """Best-effort fallback for items with no '- Ministry X' title segment:
+    scans every existing ministry/regulatory body name for a mention inside
+    the item's own title+description, per the rule that an item should only
+    ever be auto-mapped to a ministry that's actually named in its own text
+    — never guessed from outside domain knowledge. Returns None (caller
+    flags for admin review) when nothing clears the threshold."""
+    collection = db[COLLECTIONS["ministries"]]
+    candidates = [doc async for doc in collection.find({}, {"name": 1}) if doc["name"] and doc["name"] != UNMAPPED_MINISTRY_NAME]
+    if not candidates:
+        return None
+
+    best_id: ObjectId | None = None
+    best_score = 0.0
+    for doc in candidates:
+        score = fuzz.partial_ratio(doc["name"], text)
+        if score > best_score:
+            best_score = score
+            best_id = doc["_id"]
+
+    return best_id if best_score >= MINISTRY_MENTION_THRESHOLD else None
+
+
 REGULATORY_BODY_MENTION_THRESHOLD = 90
 MAX_ADDITIONAL_LINKS = 2
 
