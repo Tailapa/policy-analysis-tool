@@ -181,20 +181,18 @@ export default function App() {
 
   return (
     <div
-      className={`min-h-screen font-sans pb-12 transition-all ${
-        isDark ? 'bg-[#09090B] text-zinc-100' : 'bg-[#F4F5F7] text-zinc-800'
-      } ${fontSizeClass[textSize]}`}
+      className={`min-h-screen font-sans pb-12 transition-all ${isDark ? 'bg-[#09090B] text-zinc-100' : 'bg-[#F4F5F7] text-zinc-800'
+        } ${fontSizeClass[textSize]}`}
       style={{
         lineHeight: '1.6'
       }}
     >
       {/* Historic issue read-only warning banner */}
       {currentIssueId && latestIssueId && currentIssueId !== latestIssueId && currentIssueId !== ALL_ISSUES_ID && (
-        <div className={`px-6 py-2.5 text-xs font-bold flex items-center justify-between gap-4 border-b ${
-          isDark
+        <div className={`px-6 py-2.5 text-xs font-bold flex items-center justify-between gap-4 border-b ${isDark
             ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
             : 'bg-amber-50 text-amber-900 border-amber-200'
-        }`}>
+          }`}>
           <div className="flex items-center gap-2">
             <Info size={14} />
             <span>
@@ -203,9 +201,8 @@ export default function App() {
           </div>
           <button
             onClick={() => setCurrentIssueId(latestIssueId)}
-            className={`flex items-center gap-1 font-semibold underline cursor-pointer transition-colors ${
-              isDark ? 'text-zinc-100 hover:text-amber-400' : 'text-amber-900 hover:text-amber-750'
-            }`}
+            className={`flex items-center gap-1 font-semibold underline cursor-pointer transition-colors ${isDark ? 'text-zinc-100 hover:text-amber-400' : 'text-amber-900 hover:text-amber-750'
+              }`}
           >
             <span>Return to Current Issue</span>
             <X size={14} className="inline" />
@@ -215,9 +212,8 @@ export default function App() {
 
       {/* Backend connectivity error banner */}
       {loadError && (
-        <div className={`px-6 py-2.5 text-xs font-bold flex items-center gap-2 border-b ${
-          isDark ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-rose-50 text-rose-800 border-rose-200'
-        }`}>
+        <div className={`px-6 py-2.5 text-xs font-bold flex items-center gap-2 border-b ${isDark ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-rose-50 text-rose-800 border-rose-200'
+          }`}>
           <Info size={14} />
           <span>Couldn't reach the backend API: {loadError}</span>
         </div>
@@ -354,7 +350,7 @@ export default function App() {
                 ministries={ministries}
                 pillars={pillars}
                 onMinistriesChanged={refreshAfterPublish}
-                onPillarsChanged={() => fetchPillars().then(setPillars).catch(() => {})}
+                onPillarsChanged={() => fetchPillars().then(setPillars).catch(() => { })}
               />
             )}
           </>
@@ -362,13 +358,10 @@ export default function App() {
       </main>
 
       {/* Footer Block */}
-      <footer className={`no-print mt-16 border-t pt-8 text-center text-xs max-w-7xl mx-auto px-4 ${
-        isDark ? 'border-zinc-800 text-zinc-500' : 'border-zinc-200 text-zinc-500'
-      }`}>
+      <footer className={`no-print mt-16 border-t pt-8 text-center text-xs max-w-7xl mx-auto px-4 ${isDark ? 'border-zinc-800 text-zinc-500' : 'border-zinc-200 text-zinc-500'
+        }`}>
         <p>&copy; 2026 NFPRC Foundation. All rights reserved.</p>
-        <p className={`mt-1.5 ${isDark ? 'text-zinc-600' : 'text-zinc-400'}`}>
-          Designed as a high-fidelity interactive prototype for administrative, research, and review reference.
-        </p>
+
       </footer>
     </div>
   );
