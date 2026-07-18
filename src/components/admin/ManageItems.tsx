@@ -308,6 +308,7 @@ export default function ManageItems({ isDark, onItemsChanged, scopeCategory }: M
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {renderMinistryGroup('Ministries', 'ministry')}
                       {renderMinistryGroup('Regulatory Bodies', 'regulatory_body')}
+                      {renderMinistryGroup('Miscellaneous', 'misc')}
                     </div>
                   )}
                   <div className="flex items-center gap-2 justify-end">

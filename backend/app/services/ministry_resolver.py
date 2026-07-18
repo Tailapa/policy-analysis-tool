@@ -2,7 +2,7 @@ from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from rapidfuzz import fuzz, process
 
-from app.core.db import CATEGORY_TO_COLLECTION, COLLECTIONS, ENTITY_COLLECTIONS
+from app.core.db import CATEGORY_TO_COLLECTION, ENTITY_COLLECTIONS
 
 
 async def find_entity_by_id(db: AsyncIOMotorDatabase, oid: ObjectId) -> dict | None:
@@ -31,10 +31,26 @@ async def resolve_ministry(
     """Fuzzy-match raw_name against every ministry/regulatory body/misc
     entity name, regardless of which of the 3 collections it lives in.
     Above threshold -> link existing. Below threshold -> auto-create a new
-    record in the `ministries` collection (per backend-spec.md §5 step 3:
-    there's no review step left to catch an unlinked item, so it has to
-    resolve one way or another; a brand-new name defaults to the ministry
-    category, same as before the collection split)."""
+    record in the `ministries` collection (category "ministry") — most
+    first-time-seen names genuinely are new ministries, especially when
+    ingesting into a database that doesn't have every ministry pre-seeded
+    yet, so that has to stay the default (an earlier attempt at defaulting
+    unmatched names to "misc" instead, to catch the rare junk fragment,
+    landed *every* first-occurrence there — including completely legitimate
+    ministries — on a freshly-cleared database, which is strictly worse).
+    The rare genuine junk entity (a mis-parsed title fragment, a passing
+    mention of a body that isn't really this item's ministry) is a manual
+    admin.py "merge into"/recategorize cleanup instead of an automatic
+    default — see ManageMinistries.tsx's merge action.
+
+    Uses fuzz.ratio (plain edit-distance similarity), not WRatio — WRatio's
+    token-based blend over-credits the "Ministry of " prefix shared by most
+    entity names, scoring e.g. "Ministry of Rural Development" at 85.5
+    against *every* unrelated "Ministry of X" already on file (Finance,
+    Coal, Steel, ...), tying right at the threshold and matching whichever
+    one process.extractOne happened to see first. fuzz.ratio discriminates
+    correctly on the full string while still tolerating real variation
+    (e.g. a pure case difference still scores 96.5)."""
 
     name = raw_name.strip()
     candidates = await _all_entities(db, {"name": 1})
@@ -45,12 +61,12 @@ async def resolve_ministry(
 
     existing_names = [doc["name"] for doc in candidates]
     if existing_names:
-        match = process.extractOne(name, existing_names, scorer=fuzz.WRatio)
+        match = process.extractOne(name, existing_names, scorer=fuzz.ratio)
         if match and match[1] >= threshold:
             matched_doc = next(doc for doc in candidates if doc["name"] == match[0])
             return matched_doc["_id"], float(match[1])
 
-    result = await db[COLLECTIONS["ministries"]].insert_one(
+    result = await db[CATEGORY_TO_COLLECTION["ministry"]].insert_one(
         {
             "name": name,
             "minister_name": None,

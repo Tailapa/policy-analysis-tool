@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel
 from pymongo.errors import DuplicateKeyError
@@ -18,8 +18,6 @@ from app.schemas.ministry import (
 )
 from app.schemas.pillar import PillarCreate, PillarOut
 from app.schemas.upload import ManualItemCreate
-from app.services.draft_detection import verify_draft_status
-from app.services.geo_tagger import parse_geography_string
 from app.services.lookups import get_item_counts_by_ministry, get_latest_issue_id, get_ministry_map, get_pillar_names
 from app.services.ministry_resolver import find_entity_by_id, resolve_ministry
 
@@ -29,6 +27,14 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 class UpdateItemMinistriesIn(BaseModel):
     ministry_id: str
     additional_ministry_ids: list[str] = []
+
+
+class MergeMinistryIn(BaseModel):
+    target_id: str
+
+
+class MergeMinistryOut(BaseModel):
+    items_moved: int
 
 
 @router.get("/ministries", response_model=list[MinistryOut])
@@ -101,6 +107,52 @@ async def update_ministry(
     return serialize_ministry(doc)
 
 
+@router.post("/ministries/{ministry_id}/merge", response_model=MergeMinistryOut)
+async def merge_ministry(
+    ministry_id: str,
+    payload: MergeMinistryIn,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    _admin: dict = Depends(get_current_admin),
+):
+    """Consolidates a duplicate/misfiled entity into another — e.g. a
+    department auto-created as its own entity (see ministry_resolver.py's
+    docstring for why that happens) that should really be folded into its
+    parent ministry, or two spellings of the same body. Repoints every item
+    that referenced the source (as primary ministry_id or within
+    additional_ministry_ids) to the target, then deletes the source."""
+    source_oid = parse_object_id(ministry_id, "Ministry not found")
+    target_oid = parse_object_id(payload.target_id, "Target ministry not found")
+    if source_oid == target_oid:
+        raise HTTPException(status_code=422, detail="Cannot merge a ministry into itself")
+
+    source_doc = await find_entity_by_id(db, source_oid)
+    if not source_doc:
+        raise HTTPException(status_code=404, detail="Ministry not found")
+    if not await find_entity_by_id(db, target_oid):
+        raise HTTPException(status_code=404, detail="Target ministry not found")
+
+    items = db[COLLECTIONS["policy_items"]]
+    primary_result = await items.update_many(
+        {"ministry_id": source_oid},
+        {"$set": {"ministry_id": target_oid}, "$pull": {"additional_ministry_ids": target_oid}},
+    )
+    # Only add the target into additional_ministry_ids when it isn't
+    # already that item's primary — otherwise it'd end up listed as both
+    # the item's primary ministry and one of its additional links.
+    await items.update_many(
+        {"additional_ministry_ids": source_oid, "ministry_id": {"$ne": target_oid}},
+        {"$addToSet": {"additional_ministry_ids": target_oid}},
+    )
+    additional_result = await items.update_many(
+        {"additional_ministry_ids": source_oid}, {"$pull": {"additional_ministry_ids": source_oid}}
+    )
+
+    source_collection = CATEGORY_TO_COLLECTION[source_doc.get("category") or "ministry"]
+    await db[source_collection].delete_one({"_id": source_oid})
+
+    return MergeMinistryOut(items_moved=primary_result.modified_count + additional_result.modified_count)
+
+
 @router.delete("/ministries/{ministry_id}", status_code=204)
 async def delete_ministry(
     ministry_id: str,
@@ -151,24 +203,6 @@ async def update_item_ministries(
     return serialize_item(doc, ministry_map)
 
 
-@router.post("/items/{item_id}/verify-draft", status_code=202)
-async def trigger_draft_verification(
-    item_id: str,
-    background_tasks: BackgroundTasks,
-    db: AsyncIOMotorDatabase = Depends(get_db),
-    _admin: dict = Depends(get_current_admin),
-):
-    """Manual re-run of the Gemini+Serper draft cross-check — the PDF-derived
-    is_draft flag itself is never touched here, only draft_verification."""
-    oid = parse_object_id(item_id, "Item not found")
-    doc = await db[COLLECTIONS["policy_items"]].find_one({"_id": oid}, {"_id": 1})
-    if not doc:
-        raise HTTPException(status_code=404, detail="Item not found")
-
-    background_tasks.add_task(verify_draft_status, db, oid, True)
-    return {"status": "queued"}
-
-
 @router.post("/items", response_model=ItemOut, status_code=201)
 async def create_manual_item(
     payload: ManualItemCreate,
@@ -200,8 +234,6 @@ async def create_manual_item(
             detail=f"'{payload.theme}' is not a recognized theme. Valid themes: {', '.join(valid_pillars)}",
         )
 
-    scope, states = parse_geography_string(payload.geography)
-
     now = datetime.now(timezone.utc)
     doc = {
         "title": payload.title,
@@ -212,14 +244,12 @@ async def create_manual_item(
         "impact_level": payload.impact,
         "ministry_id": ministry_id,
         "sources": [s.model_dump() for s in payload.sources],
-        "geography": {"scope": scope, "states": states},
         "tags": payload.tags,
         "issue_id": issue_oid,
         "item_date": datetime(2026, _month_for(payload.date), payload.dateValue),
         "key_features": None,
         "why_it_matters": None,
-        "embedding": None,
-        "parsing_meta": {"ministry_match_score": _score, "geo_match_terms": []},
+        "parsing_meta": {"ministry_match_score": _score},
         "created_at": now,
         "updated_at": now,
     }

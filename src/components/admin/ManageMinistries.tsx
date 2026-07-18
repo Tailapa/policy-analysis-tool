@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Ministry, MinistryCategory } from '../../types';
-import { adminListMinistries, createMinistry, updateMinistry, deleteMinistry } from '../../api';
-import { Trash2, Loader2, Building2, AlertTriangle, Plus } from 'lucide-react';
+import { adminListMinistries, createMinistry, updateMinistry, deleteMinistry, mergeMinistry } from '../../api';
+import { Trash2, Loader2, Building2, AlertTriangle, Plus, Merge } from 'lucide-react';
 
 interface ManageMinistriesProps {
   isDark: boolean;
@@ -14,6 +14,8 @@ export default function ManageMinistries({ isDark, onMinistriesChanged }: Manage
   const [error, setError] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [mergingId, setMergingId] = useState<string | null>(null);
+  const [mergeTargetId, setMergeTargetId] = useState('');
 
   const [newName, setNewName] = useState('');
   const [newMinister, setNewMinister] = useState('');
@@ -42,6 +44,23 @@ export default function ManageMinistries({ isDark, onMinistriesChanged }: Manage
       onMinistriesChanged();
     } catch (err: any) {
       setError(err.message || 'Failed to reclassify');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleMerge = async (sourceId: string) => {
+    if (!mergeTargetId) return;
+    setBusyId(sourceId);
+    setError(null);
+    try {
+      await mergeMinistry(sourceId, mergeTargetId);
+      setMergingId(null);
+      setMergeTargetId('');
+      load();
+      onMinistriesChanged();
+    } catch (err: any) {
+      setError(err.message || 'Failed to merge');
     } finally {
       setBusyId(null);
     }
@@ -99,67 +118,122 @@ export default function ManageMinistries({ isDark, onMinistriesChanged }: Manage
             {group.map((ministry) => (
               <div
                 key={ministry.id}
-                className={`flex items-center justify-between gap-4 px-4 py-3 rounded-xl border ${
+                className={`rounded-xl border ${
                   isDark ? 'bg-zinc-950/40 border-zinc-800' : 'bg-zinc-50 border-zinc-200'
                 }`}
               >
-                <div className="min-w-0 flex items-center gap-3">
-                  <Building2 size={16} className="text-zinc-400 shrink-0" />
-                  <div className="min-w-0">
-                    <p className={`text-xs font-bold truncate ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>{ministry.name}</p>
-                    <p className="text-[10px] text-zinc-500 font-semibold mt-0.5 truncate">
-                      {ministry.minister || 'No minister set'} &bull; {ministry.itemCount} items
-                    </p>
+                <div className="flex items-center justify-between gap-4 px-4 py-3">
+                  <div className="min-w-0 flex items-center gap-3">
+                    <Building2 size={16} className="text-zinc-400 shrink-0" />
+                    <div className="min-w-0">
+                      <p className={`text-xs font-bold truncate ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>{ministry.name}</p>
+                      <p className="text-[10px] text-zinc-500 font-semibold mt-0.5 truncate">
+                        {ministry.minister || 'No minister set'} &bull; {ministry.itemCount} items
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <select
+                      value={ministry.category || 'ministry'}
+                      onChange={(e) => handleCategoryChange(ministry, e.target.value as MinistryCategory)}
+                      disabled={busyId === ministry.id}
+                      title="Recategorize"
+                      className={`px-2 py-1.5 rounded-lg border text-[10px] font-bold cursor-pointer focus:outline-none ${
+                        isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-300' : 'bg-white border-zinc-200 text-zinc-700'
+                      }`}
+                    >
+                      <option value="ministry">Ministry</option>
+                      <option value="regulatory_body">Regulatory Body</option>
+                      <option value="misc">Miscellaneous</option>
+                    </select>
+                    {busyId === ministry.id && <Loader2 size={13} className="animate-spin text-zinc-400" />}
+
+                    {confirmingId === ministry.id ? (
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-bold flex items-center gap-1 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                          <AlertTriangle size={11} /> Delete?
+                        </span>
+                        <button
+                          onClick={() => handleDelete(ministry.id)}
+                          disabled={busyId === ministry.id}
+                          className="px-3 py-1 rounded-full text-[10px] font-bold bg-rose-600 hover:bg-rose-500 text-white cursor-pointer transition-colors"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          onClick={() => setConfirmingId(null)}
+                          className={`px-3 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-colors ${
+                            isDark ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700' : 'bg-zinc-200 text-zinc-700 hover:bg-zinc-300'
+                          }`}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => {
+                            setMergingId(mergingId === ministry.id ? null : ministry.id);
+                            setMergeTargetId('');
+                          }}
+                          className={`p-2 rounded-full cursor-pointer transition-colors ${
+                            isDark ? 'text-zinc-400 hover:text-indigo-400 hover:bg-indigo-500/10' : 'text-zinc-500 hover:text-indigo-600 hover:bg-indigo-50'
+                          }`}
+                          title="Merge into another entity"
+                        >
+                          <Merge size={14} />
+                        </button>
+                        <button
+                          onClick={() => setConfirmingId(ministry.id)}
+                          className="p-2 rounded-full text-zinc-400 hover:text-rose-500 hover:bg-rose-500/10 cursor-pointer transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <select
-                    value={ministry.category || 'ministry'}
-                    onChange={(e) => handleCategoryChange(ministry, e.target.value as MinistryCategory)}
-                    disabled={busyId === ministry.id}
-                    title="Recategorize"
-                    className={`px-2 py-1.5 rounded-lg border text-[10px] font-bold cursor-pointer focus:outline-none ${
-                      isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-300' : 'bg-white border-zinc-200 text-zinc-700'
-                    }`}
-                  >
-                    <option value="ministry">Ministry</option>
-                    <option value="regulatory_body">Regulatory Body</option>
-                    <option value="misc">Miscellaneous</option>
-                  </select>
-                  {busyId === ministry.id && <Loader2 size={13} className="animate-spin text-zinc-400" />}
-
-                  {confirmingId === ministry.id ? (
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[10px] font-bold flex items-center gap-1 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
-                        <AlertTriangle size={11} /> Delete?
-                      </span>
-                      <button
-                        onClick={() => handleDelete(ministry.id)}
-                        disabled={busyId === ministry.id}
-                        className="px-3 py-1 rounded-full text-[10px] font-bold bg-rose-600 hover:bg-rose-500 text-white cursor-pointer transition-colors"
-                      >
-                        Confirm
-                      </button>
-                      <button
-                        onClick={() => setConfirmingId(null)}
-                        className={`px-3 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-colors ${
-                          isDark ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700' : 'bg-zinc-200 text-zinc-700 hover:bg-zinc-300'
-                        }`}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setConfirmingId(ministry.id)}
-                      className="p-2 rounded-full text-zinc-400 hover:text-rose-500 hover:bg-rose-500/10 cursor-pointer transition-colors"
-                      title="Delete"
+                {mergingId === ministry.id && (
+                  <div className={`mx-4 mb-3 p-3 rounded-lg border flex flex-wrap items-center gap-2 ${
+                    isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
+                  }`}>
+                    <span className={`text-[10px] font-bold ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                      Merge "{ministry.name}" into
+                    </span>
+                    <select
+                      value={mergeTargetId}
+                      onChange={(e) => setMergeTargetId(e.target.value)}
+                      className={`px-2 py-1.5 rounded-lg border text-[11px] font-semibold flex-1 min-w-[160px] focus:outline-none ${
+                        isDark ? 'bg-zinc-950 border-zinc-800 text-zinc-100' : 'bg-zinc-50 border-zinc-200 text-zinc-900'
+                      }`}
                     >
-                      <Trash2 size={14} />
+                      <option value="">Select target entity…</option>
+                      {ministries
+                        .filter((m) => m.id !== ministry.id)
+                        .map((m) => (
+                          <option key={m.id} value={m.id}>{m.name}</option>
+                        ))}
+                    </select>
+                    <button
+                      onClick={() => handleMerge(ministry.id)}
+                      disabled={!mergeTargetId || busyId === ministry.id}
+                      className="px-3 py-1.5 rounded-full text-[10px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer transition-colors disabled:opacity-50"
+                    >
+                      {busyId === ministry.id ? <Loader2 size={11} className="animate-spin" /> : 'Merge'}
                     </button>
-                  )}
-                </div>
+                    <button
+                      onClick={() => setMergingId(null)}
+                      className={`px-3 py-1.5 rounded-full text-[10px] font-bold cursor-pointer transition-colors ${
+                        isDark ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700' : 'bg-zinc-200 text-zinc-700 hover:bg-zinc-300'
+                      }`}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

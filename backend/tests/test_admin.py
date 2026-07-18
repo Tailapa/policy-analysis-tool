@@ -72,7 +72,6 @@ async def test_manual_item_create_requires_existing_issue(client, admin_token):
             "impact": "Medium",
             "date": "24 Jun",
             "dateValue": 24,
-            "geography": "national",
             "sources": [{"label": "PIB", "url": "https://pib.gov.in"}],
             "tags": ["Test"],
         },
@@ -94,7 +93,6 @@ async def test_manual_item_create_success(client, admin_token, seeded_issue):
             "impact": "Medium",
             "date": "24 Jun",
             "dateValue": 24,
-            "geography": "state: Gujarat",
             "sources": [{"label": "PIB", "url": "https://pib.gov.in"}],
             "tags": ["Test"],
         },
@@ -102,5 +100,78 @@ async def test_manual_item_create_success(client, admin_token, seeded_issue):
     assert resp.status_code == 201
     body = resp.json()
     assert body["ministry"] == "Union Cabinet"
-    assert body["geography"] == "state: Gujarat"
     assert body["date"] == "24 Jun"
+
+
+async def test_merge_ministry_repoints_items_and_deletes_source(client, admin_token, test_db, seeded_ministry, seeded_issue):
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    dept = await test_db["misc_entities"].insert_one(
+        {
+            "name": "Department of Consumer Affairs",
+            "minister_name": None,
+            "department": None,
+            "seal_url": None,
+            "icon": "AlertTriangle",
+            "category": "misc",
+        }
+    )
+    other = await test_db["ministries"].insert_one(
+        {
+            "name": "Ministry of Testing",
+            "minister_name": None,
+            "department": None,
+            "seal_url": None,
+            "icon": "Building2",
+            "category": "ministry",
+        }
+    )
+
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    primary_item = await test_db["policy_items"].insert_one(
+        {
+            "title": "Primary-linked item", "description": "desc", "pillar": "Economic Growth",
+            "subtype": "Announcement", "status": "Announced", "impact_level": "Medium",
+            "ministry_id": dept.inserted_id, "additional_ministry_ids": [], "sources": [], "tags": [],
+            "issue_id": seeded_issue["_id"], "item_date": seeded_issue["period_start"],
+            "key_features": None, "why_it_matters": None, "is_draft": False,
+            "parsing_meta": {"ministry_match_score": 0.0}, "created_at": now, "updated_at": now,
+        }
+    )
+    additional_item = await test_db["policy_items"].insert_one(
+        {
+            "title": "Additional-linked item", "description": "desc", "pillar": "Economic Growth",
+            "subtype": "Announcement", "status": "Announced", "impact_level": "Medium",
+            "ministry_id": other.inserted_id, "additional_ministry_ids": [dept.inserted_id], "sources": [], "tags": [],
+            "issue_id": seeded_issue["_id"], "item_date": seeded_issue["period_start"],
+            "key_features": None, "why_it_matters": None, "is_draft": False,
+            "parsing_meta": {"ministry_match_score": 0.0}, "created_at": now, "updated_at": now,
+        }
+    )
+
+    resp = await client.post(
+        f"/api/admin/ministries/{dept.inserted_id}/merge",
+        headers=headers,
+        json={"target_id": str(seeded_ministry["_id"])},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["items_moved"] == 2
+
+    updated_primary = await test_db["policy_items"].find_one({"_id": primary_item.inserted_id})
+    assert updated_primary["ministry_id"] == seeded_ministry["_id"]
+
+    updated_additional = await test_db["policy_items"].find_one({"_id": additional_item.inserted_id})
+    assert updated_additional["additional_ministry_ids"] == [seeded_ministry["_id"]]
+
+    assert await test_db["misc_entities"].find_one({"_id": dept.inserted_id}) is None
+
+
+async def test_merge_ministry_rejects_self_merge(client, admin_token, seeded_ministry):
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    resp = await client.post(
+        f"/api/admin/ministries/{seeded_ministry['_id']}/merge",
+        headers=headers,
+        json={"target_id": str(seeded_ministry["_id"])},
+    )
+    assert resp.status_code == 422
