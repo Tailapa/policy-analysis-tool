@@ -43,7 +43,6 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(items.router)
-    app.include_router(items.states_router)
     app.include_router(issues.router)
     app.include_router(ministries.router)
     app.include_router(pillars.router)

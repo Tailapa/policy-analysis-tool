@@ -13,7 +13,6 @@ from app.services.lookups import get_ministry_map
 from app.services.pdf_export import generate_item_pdf, generate_items_report_pdf
 
 router = APIRouter(prefix="/api/items", tags=["items"])
-states_router = APIRouter(prefix="/api/states", tags=["items"])
 
 
 class PdfReportRequest(BaseModel):
@@ -34,7 +33,6 @@ async def list_items(
     status: Optional[str] = None,
     impact_level: Optional[str] = None,
     ministry_id: Optional[str] = None,
-    state: Optional[str] = None,
     issue_id: Optional[str] = None,
     q: Optional[str] = None,
     page: int = Query(default=1, ge=1),
@@ -53,8 +51,6 @@ async def list_items(
     if ministry_id:
         oid = parse_object_id(ministry_id)
         query["$or"] = [{"ministry_id": oid}, {"additional_ministry_ids": oid}]
-    if state:
-        query["geography.states"] = state
     if issue_id:
         query["issue_id"] = parse_object_id(issue_id)
     if q:
@@ -127,13 +123,3 @@ async def download_items_report_pdf(payload: PdfReportRequest, db: AsyncIOMotorD
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{_pdf_filename(payload.report_title)}"'},
     )
-
-
-@states_router.get("/{state_code}/items", response_model=list[ItemOut])
-async def list_items_by_state(state_code: str, db: AsyncIOMotorDatabase = Depends(get_db)):
-    collection = db[COLLECTIONS["policy_items"]]
-    cursor = collection.find({"geography.states": state_code}).sort("item_date", -1)
-    docs = [doc async for doc in cursor]
-
-    ministry_map = await get_ministry_map(db)
-    return [serialize_item(doc, ministry_map) for doc in docs]

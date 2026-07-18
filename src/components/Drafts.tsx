@@ -10,7 +10,6 @@ import {
   Search,
   X,
   ExternalLink,
-  MapPin,
   Building2,
   Calendar,
   Download,
@@ -149,8 +148,6 @@ export default function Drafts({ onSelectItem, theme, items, issues }: DraftsPro
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {paginatedDraftItems.map((item) => {
               const meta = defaultPillarMeta;
-              const isState = item.geography.startsWith('state:');
-              const stateName = isState ? item.geography.replace('state:', '').trim() : '';
 
               return (
                 <div
@@ -192,23 +189,13 @@ export default function Drafts({ onSelectItem, theme, items, issues }: DraftsPro
                         <span>{getItemIssueLabel(item.issueId, issues)}</span>
                       </span>
                     )}
-                    {isState ? (
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${isDark
-                          ? 'bg-purple-900/40 border-purple-800/40 text-purple-200'
-                          : 'bg-purple-100/60 border-purple-200/80 text-purple-700'
-                        }`}>
-                        <MapPin size={10} className={isDark ? 'text-purple-200' : 'text-purple-600'} />
-                        <span>{stateName}</span>
-                      </span>
-                    ) : (
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${isDark
-                          ? 'bg-indigo-900/40 border-indigo-800/40 text-indigo-200'
-                          : 'bg-indigo-100/60 border-indigo-200/80 text-indigo-700'
-                        }`}>
-                        <Building2 size={10} className={isDark ? 'text-indigo-200' : 'text-indigo-600'} />
-                        <span className="truncate max-w-[85px]">{item.ministry}</span>
-                      </span>
-                    )}
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${isDark
+                        ? 'bg-indigo-900/40 border-indigo-800/40 text-indigo-200'
+                        : 'bg-indigo-100/60 border-indigo-200/80 text-indigo-700'
+                      }`}>
+                      <Building2 size={10} className={isDark ? 'text-indigo-200' : 'text-indigo-600'} />
+                      <span className="truncate max-w-[85px]">{item.ministry}</span>
+                    </span>
                   </div>
                 </div>
               );

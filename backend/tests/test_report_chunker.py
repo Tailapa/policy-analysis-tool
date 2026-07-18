@@ -85,6 +85,40 @@ def test_chunk_report_fails_loudly_when_nothing_parses():
         chunk_report(broken_text)
 
 
+def test_chunk_report_reads_draft_tag_from_anchor_line():
+    # is_draft is sourced only from an explicit "| Draft" tag on the PDF's
+    # own Status/Impact Level/Source anchor line — never from keyword
+    # scanning of the title/description text.
+    text = """
+    Table Of Contents
+    I. Economic Growth
+    A. Policy Updates
+    1. Draft Item - Ministry Of Finance
+    Status: Initiated | Impact Level: High | Source: PIB | Draft
+    Body text for the draft-tagged item goes here and is long enough to count.
+    2. Finalized Item - Ministry Of Finance
+    Status: Initiated | Impact Level: High | Source: PIB
+    Body text for the non-draft item goes here and is long enough to count.
+    3. Source-Only Draft Item - Ministry Of Finance
+    Source: PIB | Draft
+    Body text for the source-only draft item goes here and is long enough.
+    """
+    items = chunk_report(text)
+    assert len(items) == 3
+    assert items[0].is_draft is True
+    assert items[1].is_draft is False
+    assert items[2].is_draft is True
+
+
+def test_chunk_report_existing_fixtures_have_no_draft_tags():
+    # The two real sample PDFs predate the "| Draft" tag format — every item
+    # should default to is_draft=False rather than false-positive on
+    # anything in their body text.
+    text = extract_text(ISSUE_I_PDF.read_bytes())
+    items = chunk_report(text)
+    assert all(i.is_draft is False for i in items)
+
+
 def test_chunk_report_truncates_second_table_of_contents_as_duplicate_copy():
     # Several real source documents bundle a second, re-exported "Print Ready
     # Version" copy of the same issue directly after the first one, rather

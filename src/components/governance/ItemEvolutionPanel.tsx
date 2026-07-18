@@ -14,13 +14,13 @@ interface ItemEvolutionPanelProps {
 const POLL_INTERVAL_MS = 4000;
 const MAX_POLLS = 30; // ~2 minutes
 
-/** Auto-generated at ingestion (once the item's embedding is ready) from
- * other PDF-ingested items in earlier issues — no web grounding. Renders
- * nothing at all when there's no related history in prior editions, per
- * the "only from the PDFs I've uploaded" requirement. Admins get a
- * Regenerate control once a chain exists, for re-running it after data
- * changes; there's no manual "generate" affordance since this isn't meant
- * to be triggered from scratch here. */
+/** Auto-generated right after ingestion by matching this item against other
+ * PDF-ingested items in earlier issues via TF-IDF keyword similarity — no
+ * AI, no web grounding. Renders nothing at all when there's no related
+ * history in prior editions, per the "only from the PDFs I've uploaded"
+ * requirement. Admins get a Regenerate control once a chain exists, for
+ * re-running it after data changes; there's no manual "generate" affordance
+ * since this isn't meant to be triggered from scratch here. */
 export default function ItemEvolutionPanel({ itemId, isAdmin, isDark, onOpenItem }: ItemEvolutionPanelProps) {
   const [evolution, setEvolution] = useState<ItemEvolution | null | undefined>(undefined);
   const [generating, setGenerating] = useState(false);

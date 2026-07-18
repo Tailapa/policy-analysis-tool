@@ -6,7 +6,6 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.db import COLLECTIONS, get_db
 from app.core.utils import parse_object_id
 from app.schemas.stats import (
-    MapStat,
     MinistryStat,
     PillarStat,
     StatsSummary,
@@ -40,19 +39,6 @@ async def stats_summary(issue_id: Optional[str] = None, db: AsyncIOMotorDatabase
     return StatsSummary(
         total=total, policy_updates=policy_updates, announcements=announcements, high_impact=high_impact
     )
-
-
-@router.get("/map", response_model=list[MapStat])
-async def stats_map(issue_id: Optional[str] = None, db: AsyncIOMotorDatabase = Depends(get_db)):
-    match = await _resolve_issue_filter(issue_id, db, default_to_latest=False)
-    pipeline = [
-        {"$match": {**match, "geography.scope": "state"}},
-        {"$unwind": "$geography.states"},
-        {"$group": {"_id": "$geography.states", "count": {"$sum": 1}}},
-        {"$match": {"count": {"$gte": 1}}},
-    ]
-    rows = [row async for row in db[COLLECTIONS["policy_items"]].aggregate(pipeline)]
-    return [MapStat(state_code=row["_id"], count=row["count"]) for row in rows]
 
 
 @router.get("/ministries", response_model=list[MinistryStat])

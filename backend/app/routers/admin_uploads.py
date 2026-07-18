@@ -9,11 +9,10 @@ from app.core.db import get_db
 from app.core.deps import get_current_admin
 from app.schemas.item import serialize_item
 from app.schemas.upload import BulkIssueUploadResponse, IssueUploadResult
-from app.services.draft_detection import verify_draft_status
 from app.services.gridfs_storage import store_issue_pdf_and_link
 from app.services.ingestion import IngestionError, ingest_report
 from app.services.lookups import get_ministry_map
-from app.services.policy_evolution import generate_embedding_then_evolution
+from app.services.policy_evolution import generate_item_evolution
 
 router = APIRouter(prefix="/api/admin", tags=["admin", "uploads"])
 
@@ -28,7 +27,7 @@ async def upload_issues(
     db: AsyncIOMotorDatabase = Depends(get_db),
     _admin: dict = Depends(get_current_admin),
 ):
-    """Accepts one or more .pdf/.docx files in a single request — each is
+    """Accepts one or more .pdf files in a single request — each is
     ingested independently as its own issue, and a failure on one file
     doesn't abort the rest of the batch. The label/period_start/period_end
     manual overrides only apply when exactly one file is uploaded (they
@@ -56,11 +55,10 @@ async def upload_issues(
             results.append(IssueUploadResult(filename=filename, success=False, error=str(e)))
             continue
 
-        # Queued first, ahead of the per-item embedding/evolution/draft tasks
-        # below — those can be numerous and slow (or rate-limited) on a large
-        # issue, and FastAPI runs background tasks in the order they're
-        # added, so PDF storage would otherwise sit behind all of them
-        # despite having nothing to do with Gemini.
+        # Queued first, ahead of the per-item evolution tasks below — those
+        # can be numerous on a large issue, and FastAPI runs background
+        # tasks in the order they're added, so PDF storage would otherwise
+        # sit behind all of them despite being unrelated work.
         background_tasks.add_task(
             store_issue_pdf_and_link, db, issue_doc["_id"], issue_doc["pdf_filename"], pdf_bytes
         )
@@ -74,11 +72,8 @@ async def upload_issues(
             items_out.append(serialize_item(doc, ministry_map))
             # Optional, decoupled from ingestion (backend-spec.md §5 step 7 / §1) —
             # runs after the response-affecting work is done and never blocks or
-            # rolls back the publish if it fails. Evolution needs the embedding
-            # to exist first, so it's chained rather than queued independently.
-            background_tasks.add_task(generate_embedding_then_evolution, db, doc["_id"])
-            if doc.get("is_draft"):
-                background_tasks.add_task(verify_draft_status, db, doc["_id"])
+            # rolls back the publish if it fails.
+            background_tasks.add_task(generate_item_evolution, db, doc["_id"])
 
         results.append(
             IssueUploadResult(

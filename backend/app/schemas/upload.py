@@ -40,7 +40,6 @@ class ManualItemCreate(BaseModel):
     impact: Impact
     date: str
     dateValue: int
-    geography: str
     sources: list[ManualSourceIn]
     tags: list[str]
     issue_id: Optional[str] = None

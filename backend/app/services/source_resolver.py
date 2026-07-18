@@ -14,7 +14,7 @@ def resolve_sources(raw_label: str) -> list[dict]:
     """The source PDFs only ever give a bare org name/abbreviation (e.g.
     'Source: IFSCA, PIB') — never a URL. Split multi-source citations on
     comma and look each one up against a curated org->homepage lookup
-    (same pattern as ministries_seed.json / state_gazetteer.json). No match
+    (same pattern as ministries_seed.json). No match
     means url stays None — we don't fabricate links for orgs we don't know,
     consistent with the deterministic/no-LLM approach used elsewhere."""
     urls = _load_source_urls()

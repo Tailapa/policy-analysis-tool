@@ -29,11 +29,20 @@ MIN_DESCRIPTION_GAP = 40
 ANCHOR_RE = re.compile(
     r"Status:\s*(?P<status>Initiated|Completed|Announced|Ongoing|Implemented|Approved|Notified|Proposed|Introduced|Launched)"
     r"(?:\s*\|\s*Impact(?:\s*Level)?:\s*(?P<impact>High|Medium|Low))?"
-    r"\s*\|\s*Source:\s*(?P<source1>[^\n]+)"
+    r"\s*\|\s*Source:\s*(?P<source1>[^\n|]+)"
+    r"(?:\s*\|\s*(?P<draft1>Draft)\b)?"
     r"|"
-    r"(?:^|\n)[ \t]*Source:\s*(?P<source2>[^\n]+)",
+    r"(?:^|\n)[ \t]*Source:\s*(?P<source2>[^\n|]+)"
+    r"(?:\s*\|\s*(?P<draft2>Draft)\b)?",
     re.IGNORECASE,
 )
+# The "| Draft" segment is the PDF's own explicit draft flag, appended after
+# Source on the anchor line (e.g. "Status: X | Impact Level: Y | Source: Z |
+# Draft") — this is the sole source of is_draft going forward, no keyword
+# scanning of title/description text. Source captures now stop at "|" to
+# make room for it; harmless for every anchor line without one (the existing
+# two sample issues), since [^\n|]+ behaves identically to [^\n]+ when no
+# "|" follows Source.
 # The two sample issues turn out not to follow a single fixed anchor shape:
 # some "B. Announcements" items carry only a bare "Source: X" line (no
 # Status/Impact assessment at all — a real editorial distinction, not a
@@ -92,6 +101,7 @@ class ParsedItem:
     impact_level: str | None
     source_label: str | None
     description: str
+    is_draft: bool
 
 
 def _normalize(text: str) -> str:
@@ -288,6 +298,7 @@ def chunk_report(raw_text: str) -> list[ParsedItem]:
                     impact_level=None,
                     source_label=None,
                     description=_collapse_whitespace(raw_description),
+                    is_draft=False,
                 )
             )
             continue
@@ -299,10 +310,12 @@ def chunk_report(raw_text: str) -> list[ParsedItem]:
             status = STATUS_MAP[anchor.group("status").lower()]
             impact_level = anchor.group("impact").capitalize() if anchor.group("impact") else DEFAULT_IMPACT_WHEN_MISSING
             source_label = anchor.group("source1").strip()
+            is_draft = bool(anchor.group("draft1"))
         else:
             status = DEFAULT_STATUS_FOR_SOURCE_ONLY
             impact_level = DEFAULT_IMPACT_FOR_SOURCE_ONLY
             source_label = anchor.group("source2").strip()
+            is_draft = bool(anchor.group("draft2"))
 
         wrap_suffix, body_start = _extend_wrapped_source(text, anchor.end())
         source_label += wrap_suffix
@@ -319,6 +332,7 @@ def chunk_report(raw_text: str) -> list[ParsedItem]:
                 impact_level=impact_level,
                 source_label=source_label,
                 description=description,
+                is_draft=is_draft,
             )
         )
 

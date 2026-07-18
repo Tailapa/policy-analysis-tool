@@ -48,24 +48,6 @@ async def test_upload_items_immediately_queryable(client, admin_token):
     assert resp.json()["total"] == 54
 
 
-async def test_upload_state_tagging(client, admin_token):
-    headers = {"Authorization": f"Bearer {admin_token}"}
-    with open(ISSUE_I_PDF, "rb") as f:
-        resp = await client.post(
-            "/api/admin/issues/upload",
-            headers=headers,
-            files=[("files", (ISSUE_I_PDF.name, f, "application/pdf"))],
-        )
-
-    items = resp.json()["results"][0]["items"]
-    mizoram_items = [i for i in items if "Mizoram" in i["title"]]
-    assert mizoram_items
-    assert mizoram_items[0]["geography"] == "state: Mizoram"
-
-    national_items = [i for i in items if "ECLGS" in i["title"]]
-    assert national_items[0]["geography"] == "national"
-
-
 async def test_upload_creates_ministries_as_needed(client, admin_token, test_db):
     headers = {"Authorization": f"Bearer {admin_token}"}
     before = await test_db["ministries"].count_documents({})

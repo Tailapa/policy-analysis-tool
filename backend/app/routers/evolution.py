@@ -5,13 +5,11 @@ from app.core.db import COLLECTIONS, get_db
 from app.core.deps import get_current_admin
 from app.core.utils import parse_object_id
 from app.schemas.evolution import (
-    EmbeddingBackfillResultOut,
     EvolutionBackfillResultOut,
     GenerateEvolutionOut,
     ItemEvolutionOut,
     ItemEvolutionStatusOut,
 )
-from app.services.embeddings import backfill_missing_embeddings
 from app.services.policy_evolution import (
     backfill_missing_item_evolution,
     generate_item_evolution,
@@ -64,15 +62,3 @@ async def trigger_item_evolution_backfill(
 ):
     count = await backfill_missing_item_evolution(db, limit=limit)
     return EvolutionBackfillResultOut(chains_generated=count)
-
-
-@admin_evolution_router.post("/embeddings/backfill", response_model=EmbeddingBackfillResultOut)
-async def trigger_embedding_backfill(
-    limit: int = 100,
-    db: AsyncIOMotorDatabase = Depends(get_db),
-    _admin: dict = Depends(get_current_admin),
-):
-    """Prerequisite for /evolution/backfill — evolution matching needs an
-    embedding to compare against first. Run this, then /evolution/backfill."""
-    count = await backfill_missing_embeddings(db, limit=limit)
-    return EmbeddingBackfillResultOut(embeddings_generated=count)

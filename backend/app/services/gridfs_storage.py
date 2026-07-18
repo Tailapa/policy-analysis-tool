@@ -30,7 +30,7 @@ async def read_issue_pdf(db: AsyncIOMotorDatabase, file_id: ObjectId) -> bytes:
 async def store_issue_pdf_and_link(db: AsyncIOMotorDatabase, issue_id: ObjectId, filename: str, file_bytes: bytes) -> None:
     """Background-task entry point (see routers/admin_uploads.py) — stores
     the PDF then links it to its issue doc. Decoupled from the synchronous
-    upload response the same way embeddings/evolution/draft-verification
-    already are: never block or risk the publish flow on a secondary step."""
+    upload response the same way evolution generation already is: never
+    block or risk the publish flow on a secondary step."""
     file_id = await store_issue_pdf(db, filename, file_bytes)
     await db[COLLECTIONS["issues"]].update_one({"_id": issue_id}, {"$set": {"pdf_file_id": file_id}})

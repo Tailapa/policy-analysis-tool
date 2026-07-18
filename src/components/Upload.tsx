@@ -19,7 +19,6 @@ import {
   Tag,
   Layers
 } from 'lucide-react';
-import { INDIA_STATE_PATHS } from './IndiaMapPaths';
 import ManageItems from './admin/ManageItems';
 import ManageMinistries from './admin/ManageMinistries';
 import ManageThemes from './admin/ManageThemes';
@@ -61,8 +60,6 @@ export default function Upload({
   const [impact, setImpact] = useState<Impact>('Medium');
   const [date, setDate] = useState('24 Jun');
   const [dateValue, setDateValue] = useState(24);
-  const [isNational, setIsNational] = useState(true);
-  const [selectedState, setSelectedState] = useState(INDIA_STATE_PATHS[0].name);
 
   // Sources and Tags
   const [sources, setSources] = useState<Source[]>([{ label: 'Official Press Release', url: 'https://pib.gov.in' }]);
@@ -70,7 +67,7 @@ export default function Upload({
   const [currentSourceUrl, setCurrentSourceUrl] = useState('');
   const [tagsInput, setTagsInput] = useState('');
 
-  // File Upload states — multiple .pdf/.docx files can be batched into one upload
+  // File Upload states — multiple .pdf files can be batched into one upload
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -109,7 +106,7 @@ export default function Upload({
     }
   };
 
-  const isSupportedReportFile = (file: File) => /\.(pdf|docx)$/i.test(file.name);
+  const isSupportedReportFile = (file: File) => /\.pdf$/i.test(file.name);
 
   const addFiles = (fileList: FileList | File[]) => {
     const incoming = Array.from(fileList).filter(isSupportedReportFile);
@@ -188,7 +185,6 @@ export default function Upload({
         impact,
         date,
         dateValue,
-        geography: isNational ? 'national' : `state: ${selectedState}`,
         sources: sources.length > 0 ? sources : [{ label: 'Cabinet Secretariat', url: 'https://cabsec.gov.in' }],
         tags: tags.length > 0 ? tags : ['Cabinet', 'Policy', 'Viksit Bharat'],
       });
@@ -655,85 +651,38 @@ export default function Upload({
               </div>
             </div>
 
-            {/* Timeline date and state mapping */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                  Timeline Date *
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    required={uploadedFiles.length === 0}
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    placeholder="e.g. 24 Jun"
-                    className={`w-1/2 px-4 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all ${
-                      isDark
-                        ? 'bg-zinc-950 border-zinc-800 text-zinc-100'
-                        : 'bg-zinc-50 border-zinc-200 text-zinc-900 shadow-inner'
-                    }`}
-                  />
-                  <input
-                    type="number"
-                    required={uploadedFiles.length === 0}
-                    min={1}
-                    max={30}
-                    value={dateValue}
-                    onChange={(e) => setDateValue(Number(e.target.value))}
-                    placeholder="24"
-                    className={`w-1/2 px-4 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all ${
-                      isDark
-                        ? 'bg-zinc-950 border-zinc-800 text-zinc-100'
-                        : 'bg-zinc-50 border-zinc-200 text-zinc-900 shadow-inner'
-                    }`}
-                  />
-                </div>
-              </div>
-
-              {/* Geography Mapping */}
-              <div>
-                <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                  Geographic Targeting *
-                </label>
-                <div className="space-y-2">
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer">
-                      <input
-                        type="radio"
-                        checked={isNational}
-                        onChange={() => setIsNational(true)}
-                        className="accent-indigo-600"
-                      />
-                      <span>National Level</span>
-                    </label>
-                    <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer">
-                      <input
-                        type="radio"
-                        checked={!isNational}
-                        onChange={() => setIsNational(false)}
-                        className="accent-indigo-600"
-                      />
-                      <span>State Specific</span>
-                    </label>
-                  </div>
-
-                  {!isNational && (
-                    <select
-                      value={selectedState}
-                      onChange={(e) => setSelectedState(e.target.value)}
-                      className={`w-full px-3 py-2 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all ${
-                        isDark
-                          ? 'bg-zinc-950 border-zinc-800 text-zinc-100 focus:bg-zinc-900'
-                          : 'bg-zinc-50 border-zinc-200 text-zinc-900 focus:bg-white shadow-inner'
-                      }`}
-                    >
-                      {INDIA_STATE_PATHS.map(state => (
-                        <option key={state.id} value={state.name}>{state.name}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
+            {/* Timeline date */}
+            <div>
+              <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                Timeline Date *
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  required={uploadedFiles.length === 0}
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  placeholder="e.g. 24 Jun"
+                  className={`w-1/2 px-4 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all ${
+                    isDark
+                      ? 'bg-zinc-950 border-zinc-800 text-zinc-100'
+                      : 'bg-zinc-50 border-zinc-200 text-zinc-900 shadow-inner'
+                  }`}
+                />
+                <input
+                  type="number"
+                  required={uploadedFiles.length === 0}
+                  min={1}
+                  max={30}
+                  value={dateValue}
+                  onChange={(e) => setDateValue(Number(e.target.value))}
+                  placeholder="24"
+                  className={`w-1/2 px-4 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all ${
+                    isDark
+                      ? 'bg-zinc-950 border-zinc-800 text-zinc-100'
+                      : 'bg-zinc-50 border-zinc-200 text-zinc-900 shadow-inner'
+                  }`}
+                />
               </div>
             </div>
 
@@ -850,7 +799,7 @@ export default function Upload({
             isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-800'
           }`}>
             <h3 className={`text-sm font-bold font-display tracking-tight mb-1 ${isDark ? 'text-zinc-100' : 'text-zinc-900'}`}>
-              Or Simply Upload Reports (PDF / Word)
+              Or Simply Upload Reports (PDF)
             </h3>
             <p className="text-[10px] text-zinc-500 font-semibold mb-6 uppercase tracking-wider">
               OPTIONAL — ONE OR MORE FILES
@@ -875,7 +824,7 @@ export default function Upload({
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept=".pdf,.docx"
+                accept=".pdf"
                 onChange={handleFileChange}
                 className="hidden"
               />
@@ -892,7 +841,7 @@ export default function Upload({
                 or click to search computer
               </p>
               <p className="text-[9px] text-zinc-500/80 mt-3 italic">
-                Supports PDF or DOCX, multiple files at once (Max 15MB each)
+                Supports PDF, multiple files at once (Max 15MB each)
               </p>
             </div>
 
@@ -941,7 +890,6 @@ export default function Upload({
             <ul className="list-disc pl-4 space-y-1.5 text-[11px]">
               <li>Use title casing for the main headline.</li>
               <li>Always cross-reference a valid press release link.</li>
-              <li>State Specific targetings will light up on the Choropleth map immediately.</li>
               <li>Uploaded materials are processed locally and securely.</li>
             </ul>
           </div>

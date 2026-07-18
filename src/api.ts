@@ -113,9 +113,9 @@ export interface BulkIssueUploadResult {
   results: IssueUploadResult[];
 }
 
-// Accepts a mix of .pdf and .docx files in one batch — each is ingested as
-// its own issue; a failure on one file doesn't prevent the others from
-// publishing (see per-result `success`/`error`).
+// Accepts one or more .pdf files in one batch — each is ingested as its own
+// issue; a failure on one file doesn't prevent the others from publishing
+// (see per-result `success`/`error`).
 export async function uploadIssueFiles(files: File[]): Promise<BulkIssueUploadResult> {
   const formData = new FormData();
   files.forEach((file) => formData.append('files', file));
@@ -134,7 +134,6 @@ export interface ManualItemPayload {
   impact: Item['impact'];
   date: string;
   dateValue: number;
-  geography: string;
   sources: Item['sources'];
   tags: string[];
   issue_id?: string;
@@ -161,10 +160,6 @@ export async function updateItemMinistries(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-}
-
-export async function triggerDraftVerification(itemId: string): Promise<{ status: string }> {
-  return request<{ status: string }>(`/api/admin/items/${itemId}/verify-draft`, { method: 'POST' });
 }
 
 // --- Admin: Ministries / Regulatory Bodies --------------------------------
@@ -203,6 +198,14 @@ export async function updateMinistry(
 
 export async function deleteMinistry(ministryId: string): Promise<void> {
   return request<void>(`/api/admin/ministries/${ministryId}`, { method: 'DELETE' });
+}
+
+export async function mergeMinistry(ministryId: string, targetId: string): Promise<{ items_moved: number }> {
+  return request<{ items_moved: number }>(`/api/admin/ministries/${ministryId}/merge`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ target_id: targetId }),
+  });
 }
 
 // --- Themes / Pillars ------------------------------------------------------

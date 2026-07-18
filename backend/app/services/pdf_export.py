@@ -109,17 +109,9 @@ def _linked_names(doc: dict, ministry_map: dict[str, dict]) -> str:
     return ", ".join(names) if names else "Unknown"
 
 
-def _geography_str(doc: dict) -> str:
-    geo = doc.get("geography") or {}
-    if geo.get("scope") == "state" and geo.get("states"):
-        return f"State: {', '.join(geo['states'])}"
-    return "National"
-
-
 def _item_metadata_table(item_doc: dict, ministry_map: dict[str, dict]) -> Table:
     rows = [
         ("Jurisdiction", _linked_names(item_doc, ministry_map)),
-        ("Geography", _geography_str(item_doc)),
         ("Theme", item_doc.get("pillar", "")),
         ("Type", item_doc.get("subtype", "")),
         ("Status", item_doc.get("status") or "Not specified"),

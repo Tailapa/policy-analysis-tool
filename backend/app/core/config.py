@@ -15,18 +15,6 @@ class Settings(BaseSettings):
 
     MINISTRY_MATCH_THRESHOLD: int = 85 # updated
 
-    GEMINI_API_KEY: str = ""
-    GEMINI_TEXT_MODEL: str = "gemini-flash-lite-latest"
-
-    # Policy Intelligence generation provider — "gemini" (default) or
-    # "openrouter" (OpenAI-compatible, routes to any model OpenRouter hosts).
-    INTELLIGENCE_PROVIDER: str = "gemini"
-    OPENROUTER_API_KEY: str = ""
-    OPENROUTER_MODEL: str = "google/gemini-3.1-flash-lite"
-    OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
-
-    SERPER_API_KEY: str = ""
-
     CORS_ORIGINS: str = "http://localhost:3000"
 
     # Admin login credentials, synced into admin_users on every backend

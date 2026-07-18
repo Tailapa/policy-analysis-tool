@@ -12,14 +12,12 @@ async def _insert_item(test_db, ministry_id, issue_id, **overrides):
         "impact_level": "Medium",
         "ministry_id": ministry_id,
         "sources": [],
-        "geography": {"scope": "national", "states": []},
         "tags": [],
         "issue_id": issue_id,
         "item_date": datetime(2026, 5, 1),
         "key_features": None,
         "why_it_matters": None,
-        "embedding": None,
-        "parsing_meta": {"ministry_match_score": 0.0, "geo_match_terms": []},
+        "parsing_meta": {"ministry_match_score": 0.0},
         "created_at": now,
         "updated_at": now,
     }
@@ -37,19 +35,6 @@ async def test_stats_summary(client, test_db, seeded_ministry, seeded_issue):
     assert body["policy_updates"] == 1
     assert body["announcements"] == 1
     assert body["high_impact"] == 1
-
-
-async def test_stats_map_never_zero(client, test_db, seeded_ministry, seeded_issue):
-    await _insert_item(
-        test_db, seeded_ministry["_id"], seeded_issue["_id"],
-        geography={"scope": "state", "states": ["Gujarat"]},
-    )
-    await _insert_item(test_db, seeded_ministry["_id"], seeded_issue["_id"], geography={"scope": "national", "states": []})
-
-    resp = await client.get("/api/stats/map")
-    body = resp.json()
-    assert body == [{"state_code": "Gujarat", "count": 1}]
-    assert all(row["count"] >= 1 for row in body)
 
 
 async def test_stats_ministries_sorted_desc(client, test_db, seeded_ministry, seeded_issue):

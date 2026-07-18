@@ -89,7 +89,6 @@ async def ensure_indexes() -> None:
     )
     await db[COLLECTIONS["policy_items"]].create_index("ministry_id")
     await db[COLLECTIONS["policy_items"]].create_index("issue_id")
-    await db[COLLECTIONS["policy_items"]].create_index("geography.states")
     await db[COLLECTIONS["policy_items"]].create_index(
         [("title", "text"), ("description", "text"), ("tags", "text")],
         name="items_text_search",

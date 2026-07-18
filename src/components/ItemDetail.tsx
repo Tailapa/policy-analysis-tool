@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Item } from '../types';
-import { Building2, MapPin, ExternalLink, ArrowLeft, AlertTriangle, Download, Loader2 } from 'lucide-react';
+import { Building2, ExternalLink, ArrowLeft, AlertTriangle, Download, Loader2 } from 'lucide-react';
 import nfprcLogo from '../../assets/NFPRC_logo.png';
 import ItemEvolutionPanel from './governance/ItemEvolutionPanel';
 import { downloadItemPdf } from '../api';
@@ -16,9 +16,6 @@ interface ItemDetailProps {
 }
 
 export default function ItemDetail({ item, onBack, onFilterMinistry, onOpenItem, theme, issueLabel, isAdmin }: ItemDetailProps) {
-  const isState = item.geography.startsWith('state:');
-  const stateName = isState ? item.geography.replace('state:', '').trim() : '';
-
   const isDark = theme === 'dark';
   const linkedMinistries = item.linkedMinistries.length > 0 ? item.linkedMinistries : null;
 
@@ -116,7 +113,7 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, onOpenItem,
         }`}>
           <table className="w-full text-left border-collapse">
             <tbody>
-              {/* Row 1: Ministry / State */}
+              {/* Row 1: Ministry */}
               <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-zinc-200'}`}>
                 <th className={`w-1/3 p-4 text-xs font-bold uppercase tracking-wider border-r ${
                   isDark ? 'bg-zinc-950/60 text-zinc-400 border-zinc-800' : 'bg-zinc-50 text-zinc-500 border-zinc-200'
@@ -124,16 +121,7 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, onOpenItem,
                   Jurisdiction
                 </th>
                 <td className="p-4 flex items-center flex-wrap gap-2">
-                  {isState ? (
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold shadow-sm ${
-                      isDark
-                        ? 'bg-purple-950/40 border-purple-850/50 text-purple-300'
-                        : 'bg-purple-50 border-purple-150 text-purple-800'
-                    }`}>
-                      <MapPin size={13} className="text-purple-500" />
-                      <span>{stateName} (State)</span>
-                    </span>
-                  ) : linkedMinistries ? (
+                  {linkedMinistries ? (
                     linkedMinistries.map((m) => (
                       <button
                         key={m.id}
@@ -276,18 +264,6 @@ export default function ItemDetail({ item, onBack, onFilterMinistry, onOpenItem,
             </tbody>
           </table>
         </div>
-
-        {item.isDraft && item.draftVerification && !item.draftVerification.stillDraft && (
-          <div className={`mb-8 p-4 rounded-2xl border text-xs leading-relaxed flex items-start gap-3 ${
-            isDark ? 'bg-amber-500/10 border-amber-500/20 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-900'
-          }`}>
-            <AlertTriangle size={15} className="shrink-0 mt-0.5" />
-            <div>
-              <p className="font-bold">AI cross-check suggests this may have since been finalized</p>
-              <p className="mt-1 opacity-90">{item.draftVerification.reasoning}</p>
-            </div>
-          </div>
-        )}
 
         {/* Policy Evolution — only from PDFs already uploaded to this dashboard */}
         <div className="mb-8">

@@ -1,5 +1,5 @@
 """CLI: run the same ingestion pipeline used by POST /api/admin/issues/upload
-against a historical PDF/DOCX, for bulk-loading past issues without clicking
+against a historical PDF, for bulk-loading past issues without clicking
 through the admin UI one at a time (backend-spec.md §5 step 6).
 
 Usage (inside the backend container):
@@ -45,6 +45,6 @@ async def backfill(path: str) -> None:
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Usage: python -m app.scripts.backfill_issue <path-to-pdf-or-docx>")
+        print("Usage: python -m app.scripts.backfill_issue <path-to-pdf>")
         sys.exit(1)
     asyncio.run(backfill(sys.argv[1]))

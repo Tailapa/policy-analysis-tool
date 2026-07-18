@@ -19,13 +19,6 @@ export interface MinistryRef {
   category: MinistryCategory;
 }
 
-export interface DraftVerification {
-  stillDraft: boolean;
-  reasoning: string;
-  sourceCount: number;
-  generatedAt: string;
-}
-
 export interface Item {
   id: string;
   issueId: string;
@@ -39,11 +32,9 @@ export interface Item {
   impact: Impact | null;
   date: string; // e.g. '16 Jun', '17 Jun', etc.
   dateValue: number; // For sorting and timeline (day in June 2026, e.g. 16, 17...)
-  geography: string; // 'national' or 'state: StateName'
   sources: Source[];
   tags: string[];
   isDraft: boolean;
-  draftVerification: DraftVerification | null;
   financialOutlay: string | null;
   needsMinistryReview: boolean;
 }
@@ -75,9 +66,10 @@ export interface Issue {
   periodStart: string; // ISO date, e.g. '2026-05-16'
 }
 
-// --- Policy Evolution (PDF-only, per-item) --------------------------------
+// --- Policy Evolution (PDF-only, per-item; TF-IDF keyword matching + ------
+// templated synthesis, no AI) ------------------------------------------
 
-export type EvolutionStageSource = 'dashboard' | 'research';
+export type EvolutionStageSource = 'dashboard';
 
 export interface EvolutionStage {
   label: string;
@@ -87,20 +79,12 @@ export interface EvolutionStage {
   item_id?: string | null;
 }
 
-export interface EvolutionSource {
-  title: string;
-  url: string;
-  snippet: string;
-  query: string;
-}
-
 export interface ItemEvolution {
   theme_label: string;
   stages: EvolutionStage[];
   synthesis: string;
-  sources: EvolutionSource[];
   generated_at: string;
-  model: string;
+  method: string;
 }
 
 export interface ItemEvolutionStatus {

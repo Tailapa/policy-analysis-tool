@@ -5,10 +5,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.db import COLLECTIONS
 from app.services import pdf_parser
-from app.services.docx_converter import ConversionError, convert_docx_to_pdf
-from app.services.draft_detection import detect_draft_from_text
 from app.services.financial_extractor import extract_financial_outlay
-from app.services.geo_tagger import tag_geography
 from app.services.issue_meta import IssueMetaError, extract_issue_meta
 from app.services.ministry_resolver import (
     find_additional_regulatory_body_links,
@@ -25,26 +22,12 @@ class IngestionError(Exception):
     cover page, malformed chunk) for the router to turn into a 422."""
 
 
-async def _normalize_to_pdf(filename: str, file_bytes: bytes) -> tuple[str, bytes]:
-    """A .docx upload is converted to .pdf *before* anything else, so it
-    then flows through the exact same parsing (and storage) pipeline as a
-    native PDF upload. This isn't a default/convenience choice — direct
-    .docx text extraction (python-docx's paragraph.text) was tested against
-    5 real uploaded issue .docx files and failed to chunk *all 5*: Word's
-    numbered-list markers are applied by Word's own numbering engine, not
-    stored as literal text, so report_chunker.py's item-marker regex never
-    finds them. See docx_converter.py's docstring for the full comparison."""
-    lower = filename.lower()
-    if lower.endswith(".pdf"):
+def _normalize_to_pdf(filename: str, file_bytes: bytes) -> tuple[str, bytes]:
+    """PDF-only ingestion — no format conversion. A prior .docx-to-PDF path
+    (via headless LibreOffice) has been removed."""
+    if filename.lower().endswith(".pdf"):
         return filename, file_bytes
-    if lower.endswith(".docx"):
-        try:
-            pdf_bytes = await convert_docx_to_pdf(file_bytes)
-        except ConversionError as e:
-            raise IngestionError(str(e))
-        pdf_filename = filename.rsplit(".", 1)[0] + ".pdf"
-        return pdf_filename, pdf_bytes
-    raise IngestionError(f"Unsupported file type: {filename} (expected .pdf or .docx)")
+    raise IngestionError(f"Unsupported file type: {filename} (expected .pdf)")
 
 
 async def ingest_report(
@@ -58,12 +41,11 @@ async def ingest_report(
     pdf_url: str = "",
 ) -> tuple[dict, list[dict], bytes]:
     """Returns (issue_doc, item_docs, pdf_bytes) — pdf_bytes (the original
-    upload, or its converted-from-.docx form) is handed back rather than
-    stored inline here, so the caller can persist it to GridFS as a
-    decoupled background task (see routers/admin_uploads.py) the same way
-    embeddings/evolution/draft-verification already are: never block or
-    risk the publish response on a secondary step."""
-    pdf_filename, pdf_bytes = await _normalize_to_pdf(filename, file_bytes)
+    upload) is handed back rather than stored inline here, so the caller can
+    persist it to GridFS as a decoupled background task (see
+    routers/admin_uploads.py) the same way evolution generation already is:
+    never block or risk the publish response on a secondary step."""
+    pdf_filename, pdf_bytes = _normalize_to_pdf(filename, file_bytes)
     raw_text, ordered_links = pdf_parser.extract_text_and_source_links(pdf_bytes)
 
     if not (label and period_start and period_end):
@@ -114,7 +96,6 @@ async def ingest_report(
                 ministry_id = await get_or_create_unmapped_ministry(db)
                 match_score = 0.0
                 needs_ministry_review = True
-        scope, states, geo_terms = tag_geography(f"{parsed.title} {parsed.description}")
         if parsed.source_label is None:
             sources: list[dict] = []
         else:
@@ -122,7 +103,6 @@ async def ingest_report(
         additional_ministry_ids = await find_additional_regulatory_body_links(
             db, f"{parsed.title} {parsed.description}", ministry_id
         )
-        is_draft = detect_draft_from_text(parsed.title, parsed.description)
         financial_outlay = extract_financial_outlay(f"{parsed.title} {parsed.description}")
 
         doc = {
@@ -136,17 +116,14 @@ async def ingest_report(
             "additional_ministry_ids": additional_ministry_ids,
             "needs_ministry_review": needs_ministry_review,
             "sources": sources,
-            "geography": {"scope": scope, "states": states},
             "tags": [],
             "issue_id": issue_doc["_id"],
             "item_date": issue_doc["period_start"],
             "key_features": None,
             "why_it_matters": None,
-            "embedding": None,
-            "is_draft": is_draft,
-            "draft_verification": None,
+            "is_draft": parsed.is_draft,
             "financial_outlay": financial_outlay,
-            "parsing_meta": {"ministry_match_score": match_score, "geo_match_terms": geo_terms},
+            "parsing_meta": {"ministry_match_score": match_score},
             "created_at": now,
             "updated_at": now,
         }
