@@ -19,8 +19,6 @@ services:
     # "8000:8000" once the host is rebooted and the leak clears.
     ports: ["8010:8000"]
     env_file: ./backend/.env
-    volumes:
-      - ./data:/data:ro
     depends_on:
       mongo:
         condition: service_healthy
@@ -32,7 +30,7 @@ services:
 
   frontend:
     build:
-      context: .
+      context: ./frontend
       dockerfile: Dockerfile.frontend
     ports: ["3000:3000"]
     environment:

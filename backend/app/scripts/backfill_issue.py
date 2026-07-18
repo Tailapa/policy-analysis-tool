@@ -2,8 +2,12 @@
 against a historical PDF, for bulk-loading past issues without clicking
 through the admin UI one at a time (backend-spec.md §5 step 6).
 
-Usage (inside the backend container):
-    docker compose run --rm backend python -m app.scripts.backfill_issue "/data/India Governance Watch - 1st May to 15th May.pdf"
+Usage (inside the backend container — mount or `docker cp` your PDF in first,
+since the repo no longer ships a bundled ./data volume):
+    docker compose run --rm backend python -m app.scripts.backfill_issue "<path-to-pdf>"
+
+Usage (outside Docker, via uv):
+    cd backend && UV_PROJECT_ENVIRONMENT=../.venv uv run python -m app.scripts.backfill_issue "<path-to-pdf>"
 """
 
 import asyncio

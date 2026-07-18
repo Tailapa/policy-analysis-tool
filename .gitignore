@@ -11,4 +11,3 @@ knowledge/
 .dockerignore
 .claude/
 .firebase/
-data/
